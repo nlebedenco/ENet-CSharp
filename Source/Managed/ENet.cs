@@ -780,7 +780,7 @@ namespace ENet {
 		#if __IOS__ || UNITY_IOS && !UNITY_EDITOR
 			private const string nativeLibrary = "__Internal";
 		#else
-			private const string nativeLibrary = "enet";
+			private const string nativeLibrary = "libenet";
 		#endif
 
 		[DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
