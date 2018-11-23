@@ -485,7 +485,7 @@ namespace ENet {
 			return peer;
 		}
 
-		public int Service(int timeout, out Event @event) {
+		public int Service(out Event @event, int timeout = 0) {
 			if (timeout < 0)
 				throw new ArgumentOutOfRangeException("timeout");
 
