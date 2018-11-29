@@ -2,7 +2,7 @@
   <img src="https://i.imgur.com/CxkUxTs.png" alt="alt logo">
 </p>
 
-[![GitHub release](https://img.shields.io/github/release/nxrighthere/ENet-CSharp.svg)](https://github.com/nxrighthere/ENet-CSharp/releases) [![PayPal](https://drive.google.com/uc?id=1OQrtNBVJehNVxgPf6T6yX1wIysz1ElLR)](https://www.paypal.me/nxrighthere) [![Bountysource](https://drive.google.com/uc?id=19QRobscL8Ir2RL489IbVjcw3fULfWS_Q)](https://salt.bountysource.com/checkout/amount?team=nxrighthere)
+[![GitHub release](https://img.shields.io/github/release/nxrighthere/ENet-CSharp.svg)](https://github.com/nxrighthere/ENet-CSharp/releases) [![PayPal](https://drive.google.com/uc?id=1OQrtNBVJehNVxgPf6T6yX1wIysz1ElLR)](https://www.paypal.me/nxrighthere) [![Bountysource](https://drive.google.com/uc?id=19QRobscL8Ir2RL489IbVjcw3fULfWS_Q)](https://salt.bountysource.com/checkout/amount?team=nxrighthere) [![Discord](https://discordapp.com/api/guilds/515987760281288707/embed.png)](https://discord.gg/ceaWXVw)
 
 This project is based on collaborative work with [@inlife](https://github.com/inlife) and inherited all features of the original [fork](https://github.com/zpl-c/enet) where the native library was heavily modified. You can find the most notable changes [here](https://github.com/nxrighthere/ENet-CSharp/issues/22#issuecomment-432982154). This version is extended and optimized to run safely in the managed .NET environment with the highest possible performance.
 
@@ -182,7 +182,7 @@ Definitions of a flags for `Peer.Send()` function:
 
 `PacketFlags.NoAllocate` a packet will not allocate data, and the user must supply it instead.
 
-`PacketFlags.UnreliableFragment` a packet will be fragmented if it exceeds the MTU.
+`PacketFlags.UnreliableFragment` a packet will be unreliably fragmented if it exceeds the MTU. By default packets larger than MTU fragmented reliably.
 
 #### EventType
 Definitions of event types for `Event.Type` property:
@@ -261,7 +261,7 @@ Contains a managed pointer to the packet.
 
 `Packet.SetFreeCallback(PacketFreeCallback callback)` set callback to notify the user when an appropriate packet is being destroyed.
 
-`Packet.Create(byte[] data, int length, PacketFlags flags)` creates a packet that may be sent to a peer. The length and packet flags parameters are optional. Multiple flags can be specified at once. Managed pointer `IntPtr` to a native buffer can be used instead of a reference to a byte array.
+`Packet.Create(byte[] data, int length, PacketFlags flags)` creates a packet that may be sent to a peer. The length and packet flags parameters are optional. Multiple flags can be specified at once. Pointer `IntPtr` to a native buffer can be used instead of a reference to a byte array.
 
 `Packet.CopyTo(byte[] destination)` copies payload from the packet to the destination array.
 
