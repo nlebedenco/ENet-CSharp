@@ -74,14 +74,14 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <IntDir>$(ProjectDir)obj\$(Platform)\$(Configuration)\</IntDir>
-    <OutDir>$(SolutionDir)Output\$(Configuration)\</OutDir>
+    <OutDir>$(SolutionDir)..\..\Assets\Plugins\ENet\</OutDir>
     <IgnoreImportLibrary>false</IgnoreImportLibrary>
     <CustomBuildAfterTargets>
     </CustomBuildAfterTargets>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>$(SolutionDir)Output\$(Configuration)\</OutDir>
+    <OutDir>$(SolutionDir)..\..\Assets\Plugins\ENet\</OutDir>
     <IntDir>$(ProjectDir)obj\$(Platform)\$(Configuration)\</IntDir>
     <IgnoreImportLibrary>false</IgnoreImportLibrary>
     <CustomBuildAfterTargets>
@@ -90,7 +90,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <IntDir>$(ProjectDir)obj\$(Platform)\$(Configuration)\</IntDir>
-    <OutDir>$(SolutionDir)Output\$(Configuration)\</OutDir>
+    <OutDir>$(SolutionDir)..\..\Assets\Plugins\ENet\</OutDir>
     <GenerateManifest>false</GenerateManifest>
     <IgnoreImportLibrary>false</IgnoreImportLibrary>
     <CustomBuildAfterTargets>
@@ -98,7 +98,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>$(SolutionDir)Output\$(Configuration)\</OutDir>
+    <OutDir>$(SolutionDir)..\..\Assets\Plugins\ENet\</OutDir>
     <IntDir>$(ProjectDir)obj\$(Platform)\$(Configuration)\</IntDir>
     <GenerateManifest>false</GenerateManifest>
     <IgnoreImportLibrary>false</IgnoreImportLibrary>
@@ -123,6 +123,7 @@
     </Link>
     <PostBuildEvent>
       <Command>XCOPY $(SolutionDir)Managed\* $(OutDir) /e /y</Command>
+      <Message>Copy managed source code and assembly definition</Message>
     </PostBuildEvent>
     <CustomBuildStep>
       <Command>
