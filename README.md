@@ -1,10 +1,8 @@
-<p align="center"> 
-  <img src="https://i.imgur.com/CxkUxTs.png" alt="alt logo">
-</p>
+# ENET C# 3
 
-[![GitHub release](https://img.shields.io/github/release/nxrighthere/ENet-CSharp.svg)](https://github.com/nxrighthere/ENet-CSharp/releases) [![PayPal](https://drive.google.com/uc?id=1OQrtNBVJehNVxgPf6T6yX1wIysz1ElLR)](https://www.paypal.me/nxrighthere) [![Bountysource](https://drive.google.com/uc?id=19QRobscL8Ir2RL489IbVjcw3fULfWS_Q)](https://salt.bountysource.com/checkout/amount?team=nxrighthere) [![Discord](https://discordapp.com/api/guilds/515987760281288707/embed.png)](https://discord.gg/ceaWXVw)
+This project is a fork of [ENet-CSharp](https://github.com/nxrighthere/ENet-CSharp) that introduces some protocol modifications and fixes.
 
-This project is based on collaborative work with [@inlife](https://github.com/inlife) and inherited all features of the original [fork](https://github.com/zpl-c/enet) where the native library was heavily modified. You can find the most notable changes [here](https://github.com/nxrighthere/ENet-CSharp/issues/22#issuecomment-432982154). This version is extended and optimized to run safely in the managed .NET environment with the highest possible performance.
+ENet-CSharp has originated as a collaborative work of [@nxrighthere] with [@inlife](https://github.com/inlife) and inherited all features of the original [fork](https://github.com/zpl-c/enet) where the native library was heavily modified. You can find the most notable changes [here](https://github.com/nxrighthere/ENet-CSharp/issues/22#issuecomment-432982154). This version is extended and optimized to run safely in the managed .NET environment with the highest possible performance.
 
 Features:
 
@@ -32,16 +30,6 @@ For mobile platforms [NDK](https://developer.android.com/ndk/downloads/) for And
 Define `ENET_LZ4` to build the library with support for an optional packet-level compression.
 
 A managed assembly can be built using any available compiling platform that supports C# 3.0 or higher.
-
-Compiled libraries
---------
-You can grab compiled libraries from the [release](https://github.com/nxrighthere/ENet-CSharp/releases) section:
-
-`ENet-CSharp` contains compiled assembly with native libraries for the .NET environment.
-
-`ENet-Unity` contains script with native libraries for the Unity.
-
-These packages are provided only for traditional platforms: Windows, Linux, and MacOS.
 
 Usage
 --------
