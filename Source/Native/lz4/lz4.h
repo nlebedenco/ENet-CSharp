@@ -258,7 +258,7 @@ LZ4LIB_API int LZ4_decompress_safe_partial (const char* src, char* dst, int srcS
 typedef union LZ4_stream_u LZ4_stream_t;  /* incomplete type (defined later) */
 
 /*! LZ4_createStream() and LZ4_freeStream() :
- *  LZ4_createStream() will allocate and initialize an `LZ4_stream_t` structure.
+ *  LZ4_createStream() will allocate and initialize an 'LZ4_stream_t' structure.
  *  LZ4_freeStream() releases its memory.
  */
 LZ4LIB_API LZ4_stream_t* LZ4_createStream(void);
@@ -494,7 +494,8 @@ LZ4LIB_API void LZ4_attach_dictionary(LZ4_stream_t *working_stream, const LZ4_st
 #include <stdint.h>
 
 typedef struct LZ4_stream_t_internal LZ4_stream_t_internal;
-struct LZ4_stream_t_internal {
+struct LZ4_stream_t_internal 
+{
     uint32_t hashTable[LZ4_HASH_SIZE_U32];
     uint32_t currentOffset;
     uint16_t initCheck;
@@ -504,7 +505,8 @@ struct LZ4_stream_t_internal {
     uint32_t dictSize;
 };
 
-typedef struct {
+typedef struct 
+{
     const uint8_t* externalDict;
     size_t extDictSize;
     const uint8_t* prefixEnd;
@@ -514,7 +516,8 @@ typedef struct {
 #else
 
 typedef struct LZ4_stream_t_internal LZ4_stream_t_internal;
-struct LZ4_stream_t_internal {
+struct LZ4_stream_t_internal 
+{
     unsigned int hashTable[LZ4_HASH_SIZE_U32];
     unsigned int currentOffset;
     unsigned short initCheck;
@@ -524,7 +527,8 @@ struct LZ4_stream_t_internal {
     unsigned int dictSize;
 };
 
-typedef struct {
+typedef struct 
+{
     const unsigned char* externalDict;
     size_t extDictSize;
     const unsigned char* prefixEnd;
@@ -543,10 +547,11 @@ typedef struct {
  */
 #define LZ4_STREAMSIZE_U64 ((1 << (LZ4_MEMORY_USAGE-3)) + 4)
 #define LZ4_STREAMSIZE     (LZ4_STREAMSIZE_U64 * sizeof(unsigned long long))
-union LZ4_stream_u {
+union LZ4_stream_u 
+{
     unsigned long long table[LZ4_STREAMSIZE_U64];
     LZ4_stream_t_internal internal_donotuse;
-} ;  /* previously typedef'd to LZ4_stream_t */
+};  /* previously typedef'd to LZ4_stream_t */
 
 
 /*!

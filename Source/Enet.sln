@@ -5,6 +5,11 @@ VisualStudioVersion = 15.0.27703.2047
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libenet", "Native\enet.vcxproj", "{A4D047FC-08DC-4987-9789-6E094FE587DD}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Test", "Test\Test.vcxproj", "{3B05CFE7-3F8E-4AE3-82F9-F3A8A6CCBB16}"
+	ProjectSection(ProjectDependencies) = postProject
+		{A4D047FC-08DC-4987-9789-6E094FE587DD} = {A4D047FC-08DC-4987-9789-6E094FE587DD}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -21,6 +26,14 @@ Global
 		{A4D047FC-08DC-4987-9789-6E094FE587DD}.Release|x64.Build.0 = Release|x64
 		{A4D047FC-08DC-4987-9789-6E094FE587DD}.Release|x86.ActiveCfg = Release|Win32
 		{A4D047FC-08DC-4987-9789-6E094FE587DD}.Release|x86.Build.0 = Release|Win32
+		{3B05CFE7-3F8E-4AE3-82F9-F3A8A6CCBB16}.Debug|x64.ActiveCfg = Debug|x64
+		{3B05CFE7-3F8E-4AE3-82F9-F3A8A6CCBB16}.Debug|x64.Build.0 = Debug|x64
+		{3B05CFE7-3F8E-4AE3-82F9-F3A8A6CCBB16}.Debug|x86.ActiveCfg = Debug|Win32
+		{3B05CFE7-3F8E-4AE3-82F9-F3A8A6CCBB16}.Debug|x86.Build.0 = Debug|Win32
+		{3B05CFE7-3F8E-4AE3-82F9-F3A8A6CCBB16}.Release|x64.ActiveCfg = Release|x64
+		{3B05CFE7-3F8E-4AE3-82F9-F3A8A6CCBB16}.Release|x64.Build.0 = Release|x64
+		{3B05CFE7-3F8E-4AE3-82F9-F3A8A6CCBB16}.Release|x86.ActiveCfg = Release|Win32
+		{3B05CFE7-3F8E-4AE3-82F9-F3A8A6CCBB16}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
