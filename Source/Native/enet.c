@@ -3209,7 +3209,7 @@ ENetHost* enet_host_create(const ENetAddress* localAddress, size_t peerCount, en
 		currentPeer->host = host;
 		currentPeer->incomingPeerId = (enet_uint16)(currentPeer - host->peers);
 		currentPeer->outgoingSessionId = currentPeer->incomingSessionId = 0xFF;
-		currentPeer->data = NULL;
+		currentPeer->userData = NULL;
 
 		enet_list_clear(&currentPeer->acknowledgements);
 		enet_list_clear(&currentPeer->sentReliableCommands);
@@ -3710,6 +3710,11 @@ void enet_packet_dispose(ENetPacket* packet)
 		enet_packet_destroy(packet);
 }
 
+ENetPeer* enet_host_get_peer(ENetHost* host, enet_uint32 index)
+{
+    return index < host->connectedPeers ? &host->peers[index] : NULL;
+}
+
 enet_uint32 enet_host_get_peers_count(ENetHost* host) 
 {
 	return host->connectedPeers;
@@ -3740,9 +3745,14 @@ enet_uint32 enet_peer_get_id(ENetPeer* peer)
 	return peer->connectId;
 }
 
-int enet_peer_get_ip(ENetPeer* peer, char* ip, size_t ipLength) 
+int enet_peer_get_ip(ENetPeer* peer, char* ip, size_t length)
 {
-	return enet_address_get_host_ip(&peer->address, ip, ipLength);
+	return enet_address_get_host_ip(&peer->address, ip, length);
+}
+
+int enet_peer_get_name(ENetPeer* peer, char* name, size_t length)
+{
+    return enet_address_get_host_name(&peer->address, name, length);
 }
 
 enet_uint16 enet_peer_get_port(ENetPeer* peer) 
@@ -3795,14 +3805,14 @@ enet_uint64 enet_peer_get_bytes_received(ENetPeer* peer)
 	return peer->totalDataReceived;
 }
 
-void*  enet_peer_get_data(ENetPeer* peer) 
+void*  enet_peer_get_userdata(ENetPeer* peer) 
 {
-	return (void*)peer->data;
+	return (void*)peer->userData;
 }
 
-void enet_peer_set_data(ENetPeer* peer, const void* data) 
+void enet_peer_set_userdata(ENetPeer* peer, const void* data) 
 {
-	peer->data = (enet_uint32*)data;
+	peer->userData = (enet_uint32*)data;
 }
 
 
@@ -3887,7 +3897,7 @@ int enet_address_get_host_ip(const ENetAddress* address, char* name, size_t name
 	return 0;
 }
 
-int enet_address_get_host(const ENetAddress* address, char* name, size_t nameLength) 
+int enet_address_get_host_name(const ENetAddress* address, char* name, size_t nameLength) 
 {
 	struct sockaddr_in6 sin;
 	int err;
@@ -4521,7 +4531,7 @@ int inet_pton(int af, const char* src, struct in6_addr* dst)
 		return 0;
 	}
 
-	int enet_address_get_host(const ENetAddress* address, char* name, size_t nameLength)
+	int enet_address_get_host_name(const ENetAddress* address, char* name, size_t nameLength)
 	{
 		struct in6_addr in = address->host;
 		struct hostent* hostEntry = gethostbyaddr((char*)&in, sizeof(struct in6_addr), AF_INET6);

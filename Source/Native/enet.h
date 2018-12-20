@@ -185,8 +185,10 @@
 #define ENET_MIN(x, y) ((x) < (y) ? (x) : (y))
 #define ENET_IPV6           1
 #define ENET_HOST_ANY       in6addr_any
+#define ENET_HOST_LOCALHOST in6addr_loopback
 #define ENET_HOST_BROADCAST 0xFFFFFFFFU
 #define ENET_PORT_ANY       0
+#define ENET_SCOPE_ID_NONE  0
 
 #define ENET_HOST_TO_NET_16(value) (htons(value))
 #define ENET_HOST_TO_NET_32(value) (htonl(value))
@@ -672,7 +674,7 @@ typedef struct _ENetPeer
     enet_uint8        outgoingSessionId;
     enet_uint8        incomingSessionId;
     ENetAddress       address;
-    void*             data;
+    void*             userData; // Application data, may be freely modified 
     ENetPeerState     state;
     ENetChannel*      channels;
     enet_uint16       channelCount;
@@ -821,9 +823,9 @@ ENET_API void                  enet_socket_destroy(ENetSocket socket);
 ENET_API int                   enet_socketset_select(ENetSocket maxSocket, ENetSocketSet* readSet, ENetSocketSet* writeSet, enet_uint32 timeout);
 
 ENET_API int                   enet_address_set_host_ip(ENetAddress* address, const char* hostName);
-ENET_API int                   enet_address_set_host(ENetAddress* address, const char* hostName);
+ENET_API int                   enet_address_set_host_name(ENetAddress* address, const char* hostName);
 ENET_API int                   enet_address_get_host_ip(const ENetAddress* address, char* hostName, size_t nameLength);
-ENET_API int                   enet_address_get_host(const ENetAddress* address, char* hostName, size_t nameLength);
+ENET_API int                   enet_address_get_host_name(const ENetAddress* address, char* hostName, size_t nameLength);
 
 ENET_API ENetPacket*           enet_packet_create(const void* data, size_t dataLength, enet_uint16 flags);
 ENET_API ENetPacket*           enet_packet_create_offset(const void* data, size_t dataLength, size_t dataOffset, enet_uint16 flags);
@@ -889,6 +891,7 @@ ENET_API int                   enet_packet_get_length(ENetPacket* packet);
 ENET_API void                  enet_packet_set_free_callback(ENetPacket* packet, const void* callback);
 ENET_API void                  enet_packet_dispose(ENetPacket* packet);
 
+ENET_API ENetPeer*             enet_host_get_peer(ENetHost* host, enet_uint32 index);
 ENET_API enet_uint32           enet_host_get_peers_count(ENetHost* host);
 ENET_API enet_uint32           enet_host_get_packets_sent(ENetHost* host);
 ENET_API enet_uint32           enet_host_get_packets_received(ENetHost* host);
@@ -896,7 +899,8 @@ ENET_API enet_uint32           enet_host_get_bytes_sent(ENetHost* host);
 ENET_API enet_uint32           enet_host_get_bytes_received(ENetHost* host);
 
 ENET_API enet_uint32           enet_peer_get_id(ENetPeer* peer);
-ENET_API int                   enet_peer_get_ip(ENetPeer* peer, char* ip, size_t ipLength);
+ENET_API int                   enet_peer_get_ip(ENetPeer* peer, char* ip, size_t length);
+ENET_API int                   enet_peer_get_name(ENetPeer* peer, char* name, size_t length);
 ENET_API enet_uint16           enet_peer_get_port(ENetPeer* peer);
 ENET_API enet_uint16           enet_peer_get_mtu(ENetPeer* peer);
 ENET_API ENetPeerState         enet_peer_get_state(ENetPeer* peer);
@@ -907,8 +911,8 @@ ENET_API enet_uint64           enet_peer_get_packets_sent(ENetPeer* peer);
 ENET_API enet_uint32           enet_peer_get_packets_lost(ENetPeer* peer);
 ENET_API enet_uint64           enet_peer_get_bytes_sent(ENetPeer* peer);
 ENET_API enet_uint64           enet_peer_get_bytes_received(ENetPeer* peer);
-ENET_API void*                 enet_peer_get_data(ENetPeer* peer);
-ENET_API void                  enet_peer_set_data(ENetPeer* peer, const void* data);
+ENET_API void*                 enet_peer_get_userdata(ENetPeer* peer);
+ENET_API void                  enet_peer_set_userdata(ENetPeer* peer, const void* data);
 
 #ifdef __cplusplus
 }
