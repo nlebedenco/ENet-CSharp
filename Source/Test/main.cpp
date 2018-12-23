@@ -76,7 +76,7 @@ void client()
             send_message(event.peer, ChallengeMsg, strlen(ChallengeMsg) + 1, ENET_PACKET_FLAG_RELIABLE, 0);
             break;
         case ENET_EVENT_TYPE_RECEIVE:
-            client_info("Received packet of %Iu bytes from %s:%d on channel %u.\n", event.packet->dataLength, name, enet_peer_get_port(event.peer), event.channelId);
+            client_info("Received packet with %Iu bytes of data from %s:%d on channel %u.\n", event.packet->dataLength, name, enet_peer_get_port(event.peer), event.channelId);
             if (event.packet->dataLength != (strlen(ResponseMsg) + 1))
             {
                 client_error("Invalid packet size.\n");
@@ -150,7 +150,7 @@ void server()
             server_info("Connected to %s:%d.\n", name, enet_peer_get_port(event.peer));
             break;
         case ENET_EVENT_TYPE_RECEIVE:
-            server_info("Received packet of %Iu bytes from %s:%d on channel %u.\n", event.packet->dataLength, name, enet_peer_get_port(event.peer), event.channelId);
+            server_info("Received packet with %Iu bytes of data from %s:%d on channel %u.\n", event.packet->dataLength, name, enet_peer_get_port(event.peer), event.channelId);
             if (event.packet->dataLength != (strlen(ChallengeMsg) + 1))
             {
                 server_error("Invalid packet size.\n");
