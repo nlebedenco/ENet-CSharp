@@ -183,6 +183,7 @@
     </Link>
     <PostBuildEvent>
       <Command>XCOPY $(SolutionDir)Managed\* $(OutDir) /e /y</Command>
+      <Message>Copy C# wrapper</Message>
     </PostBuildEvent>
     <CustomBuildStep>
       <Command>
@@ -214,6 +215,7 @@
     </Link>
     <PostBuildEvent>
       <Command>XCOPY $(SolutionDir)Managed\* $(OutDir) /e /y</Command>
+      <Message>Copy C# wrapper</Message>
     </PostBuildEvent>
     <CustomBuildStep>
       <Message />

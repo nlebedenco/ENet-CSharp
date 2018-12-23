@@ -5,6 +5,7 @@
 .vscode
 ExportedObj/
 obj/
+bin/
 *.svd
 *.userprefs
 *.pidb
@@ -20,6 +21,7 @@ Source/Output
 Source/Release/
 Source/Debug/
 Source/*.db
+
 
 #==============
 # OS generated
