@@ -3754,12 +3754,12 @@ enet_uint32 enet_peer_get_id(ENetPeer* peer)
 
 int enet_peer_get_ip(ENetPeer* peer, char* ip, size_t length)
 {
-	return enet_address_get_host_ip(&peer->address, ip, length);
+	return enet_address_get_ip(&peer->address, ip, length);
 }
 
 int enet_peer_get_name(ENetPeer* peer, char* name, size_t length)
 {
-    return enet_address_get_host_name(&peer->address, name, length);
+    return enet_address_get_name(&peer->address, name, length);
 }
 
 enet_uint16 enet_peer_get_port(ENetPeer* peer) 
@@ -4187,7 +4187,7 @@ int enet_socket_receive(ENetSocket socket, ENetAddress* address, ENetBuffer* buf
 	return recvLength;
 }
 
-int enet_socketset_select(ENetSocket maxSocket, ENetSocketSet* readSet, ENetSocketSet* writeSet, enet_uint32 timeout) 
+int enet_socket_select(ENetSocket maxSocket, ENetSocketSet* readSet, ENetSocketSet* writeSet, enet_uint32 timeout) 
 {
 	struct timeval timeVal;
 
@@ -4481,7 +4481,7 @@ int inet_pton(int af, const char* src, struct in6_addr* dst)
 		return (enet_uint32)timeGetTime();
 	}
 
-	int enet_address_set_host_ip(ENetAddress* address, const char* name) 
+	int enet_address_set_ip(ENetAddress* address, const char* name) 
 	{
 		enet_uint8 vals[4] = {0, 0, 0, 0};
 
@@ -4510,7 +4510,7 @@ int inet_pton(int af, const char* src, struct in6_addr* dst)
 		return 0;
 	}
 
-	int enet_address_set_host(ENetAddress* address, const char* name) 
+	int enet_address_set_name(ENetAddress* address, const char* name) 
 	{
 		struct hostent* hostEntry = gethostbyname(name);
 
@@ -4530,7 +4530,7 @@ int inet_pton(int af, const char* src, struct in6_addr* dst)
 		return 0;
 	}
 
-	int enet_address_get_host_ip(const ENetAddress *address, char* name, size_t nameLength)
+	int enet_address_get_ip(const ENetAddress *address, char* name, size_t nameLength)
 	{
 		if (inet_ntop(AF_INET6, (PVOID)&address->host, name, nameLength) == NULL)
 			return -1;
@@ -4538,14 +4538,14 @@ int inet_pton(int af, const char* src, struct in6_addr* dst)
 		return 0;
 	}
 
-	int enet_address_get_host_name(const ENetAddress* address, char* name, size_t nameLength)
+	int enet_address_get_name(const ENetAddress* address, char* name, size_t nameLength)
 	{
 		struct in6_addr in = address->host;
 		struct hostent* hostEntry = gethostbyaddr((char*)&in, sizeof(struct in6_addr), AF_INET6);
 
 		if (hostEntry == NULL) 
 		{
-			return enet_address_get_host_ip(address, name, nameLength);
+			return enet_address_get_ip(address, name, nameLength);
 		}
 		else 
 		{
@@ -4777,7 +4777,7 @@ int inet_pton(int af, const char* src, struct in6_addr* dst)
 		return (int)recvLength;
 	}
 
-	int enet_socketset_select(ENetSocket maxSocket, ENetSocketSet* readSet, ENetSocketSet* writeSet, enet_uint32 timeout) 
+	int enet_socket_select(ENetSocket maxSocket, ENetSocketSet* readSet, ENetSocketSet* writeSet, enet_uint32 timeout) 
 	{
 		struct timeval timeVal;
 		timeVal.tv_sec = timeout / 1000;

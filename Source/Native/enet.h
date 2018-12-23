@@ -821,12 +821,12 @@ ENET_API int                   enet_socket_set_option(ENetSocket socket, ENetSoc
 ENET_API int                   enet_socket_get_option(ENetSocket socket, ENetSocketOption option, int* value);
 ENET_API int                   enet_socket_shutdown(ENetSocket socket, ENetSocketShutdown how);
 ENET_API void                  enet_socket_destroy(ENetSocket socket);
-ENET_API int                   enet_socketset_select(ENetSocket maxSocket, ENetSocketSet* readSet, ENetSocketSet* writeSet, enet_uint32 timeout);
+ENET_API int                   enet_socket_select(ENetSocket maxSocket, ENetSocketSet* readSet, ENetSocketSet* writeSet, enet_uint32 timeout);
 
-ENET_API int                   enet_address_set_host_ip(ENetAddress* address, const char* hostName);
-ENET_API int                   enet_address_set_host_name(ENetAddress* address, const char* hostName);
-ENET_API int                   enet_address_get_host_ip(const ENetAddress* address, char* hostName, size_t nameLength);
-ENET_API int                   enet_address_get_host_name(const ENetAddress* address, char* hostName, size_t nameLength);
+ENET_API int                   enet_address_set_ip(ENetAddress* address, const char* hostName);
+ENET_API int                   enet_address_set_name(ENetAddress* address, const char* hostName);
+ENET_API int                   enet_address_get_ip(const ENetAddress* address, char* hostName, size_t nameLength);
+ENET_API int                   enet_address_get_name(const ENetAddress* address, char* hostName, size_t nameLength);
 
 ENET_API ENetPacket*           enet_packet_create(const void* data, size_t dataLength, enet_uint16 flags);
 ENET_API ENetPacket*           enet_packet_create_offset(const void* data, size_t dataLength, size_t dataOffset, enet_uint16 flags);

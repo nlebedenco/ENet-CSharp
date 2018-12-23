@@ -127,7 +127,7 @@ namespace ENet
             {
                 byte[] hostName = ArrayPool.GetBuffer();
 
-                if (Native.enet_address_get_host(ref nativeAddress, hostName, (IntPtr)hostName.Length) == 0)
+                if (Native.enet_address_get_name(ref nativeAddress, hostName, (IntPtr)hostName.Length) == 0)
                     return Encoding.ASCII.GetString(hostName, 0, hostName.AnsiStrLen());
                 else
                     return string.Empty;
@@ -138,7 +138,7 @@ namespace ENet
                 if (value == null)
                     throw new ArgumentNullException("value");
 
-                if (Native.enet_address_set_host(ref nativeAddress, Encoding.ASCII.GetBytes(value)) != 0)
+                if (Native.enet_address_set_name(ref nativeAddress, Encoding.ASCII.GetBytes(value)) != 0)
                     throw new ArgumentException("value"); 
             }
         }
@@ -882,10 +882,10 @@ namespace ENet
         internal static extern ulong enet_time_get();
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern int enet_address_set_host(ref ENetAddress address, byte[] hostName);
+        internal static extern int enet_address_set_name(ref ENetAddress address, byte[] hostName);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern int enet_address_get_host(ref ENetAddress address, byte[] hostName, IntPtr length);
+        internal static extern int enet_address_get_name(ref ENetAddress address, byte[] hostName, IntPtr length);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
         internal static extern IntPtr enet_packet_create(byte[] data, IntPtr dataLength, PacketFlags flags);
