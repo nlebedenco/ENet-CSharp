@@ -257,7 +257,9 @@ ENET_API size_t enet_list_size(ENetList* list);
 #define ENET_PROTOCOL_MAXIMUM_WINDOW_SIZE                       ((enet_uint32) 65536)
 #define ENET_PROTOCOL_MINIMUM_CHANNEL_COUNT                     ((enet_uint16)     1)
 #define ENET_PROTOCOL_MAXIMUM_CHANNEL_COUNT                     ((enet_uint16)   256)       // Cannot be greater than 256 since the protocol command header can only contain channel ids of 8 bits.
-#define ENET_PROTOCOL_MAXIMUM_PEER_ID                           ((enet_uint16)  4095)
+#define ENET_PROTOCOL_MAXIMUM_PEER_COUNT                        ((enet_uint16)  4096)
+#define ENET_PROTOCOL_MAXIMUM_PEER_ID                           ((enet_uint16) (ENET_PROTOCOL_MAXIMUM_PEER_COUNT - 1))
+#define ENET_PROTOCOL_NULL_PEER                                 ((enet_uint16) 65535)
 #define ENET_PROTOCOL_MAXIMUM_FRAGMENT_COUNT                    ((enet_uint16) 65000)
 
 
@@ -627,7 +629,6 @@ typedef enum _ENetPeerState
 #define ENET_HOST_DEFAULT_MTU                                   1400
 #define ENET_HOST_DEFAULT_MAXIMUM_PACKET_SIZE                   (32 * 1024 * 1024)
 #define ENET_HOST_DEFAULT_MAXIMUM_WAITING_DATA                  (32 * 1024 * 1024)
-#define ENET_HOST_PACKET_DATA_LENGTH_MIN                        ((size_t)&((ENetProtocolHeader*)0)->sentTime)
 #define ENET_HOST_PACKET_DATA_LENGTH_MAX                        ((size_t)ENET_PROTOCOL_MAXIMUM_MTU)
 
 #define ENET_PEER_DEFAULT_ROUND_TRIP_TIME                       500
@@ -651,6 +652,23 @@ typedef enum _ENetPeerState
 #define ENET_PEER_RELIABLE_WINDOW_SIZE                          4096
 #define ENET_PEER_FREE_RELIABLE_WINDOWS                         8
 
+typedef enum _ENetEventType
+{
+    ENET_EVENT_TYPE_NONE = 0,
+    ENET_EVENT_TYPE_CONNECT,
+    ENET_EVENT_TYPE_DISCONNECT,
+    ENET_EVENT_TYPE_RECEIVE,
+    ENET_EVENT_TYPE_TIMEOUT
+} ENetEventType;
+
+typedef struct _ENetEvent
+{
+    ENetEventType       type;
+    struct _ENetPeer*   peer;
+    enet_uint8          channelId;
+    enet_uint32         data;
+    ENetPacket*         packet;
+} ENetEvent;
 
 typedef struct _ENetChannel 
 {
@@ -694,7 +712,7 @@ typedef struct _ENetPeer
     enet_uint32       packetsSent;
     enet_uint64       totalPacketsSent;
     enet_uint32       packetsLost;
-    enet_uint32       totalPacketsLost;
+    enet_uint64       totalPacketsLost;
     enet_uint32       packetLoss;
     enet_uint32       packetLossVariance;
     enet_uint32       packetThrottle;
@@ -735,31 +753,32 @@ typedef struct _ENetPeer
 
 typedef enet_uint32 (ENET_CALLBACK* ENetChecksumCallback) (const ENetBuffer* buffers, size_t bufferCount);
 
-typedef int (ENET_CALLBACK* ENetInterceptCallback) (struct _ENetHost* host, void* event);
+typedef int (ENET_CALLBACK* ENetInterceptCallback) (struct _ENetHost* host, struct _ENetEvent* event);
 
 typedef struct _ENetHost 
 {
     ENetSocket            socket;
     ENetAddress           address;
-    enet_uint32           incomingBandwidth;
-    enet_uint32           outgoingBandwidth;
+    enet_uint32           incomingBandwidth;            // downstream bandwidth of the host
+    enet_uint32           outgoingBandwidth;            // upstream bandwidth of the host
     enet_uint32           bandwidthThrottleEpoch;
     enet_uint16           mtu;
     enet_uint32           randomSeed;
     int                   recalculateBandwidthLimits;
     enet_uint8            refuseConnections;
-    ENetPeer*             peers;
-    size_t                peerCount;
-    enet_uint16           channelLimit;
+    ENetPeer*             peers;                        // array of peers allocated for this host
+    size_t                peerCount;                    // number of peers allocated for this host
+    enet_uint16           channelLimit;                 // maximum number of channels allowed for connected peers
     enet_uint32           serviceTime;
+    enet_uint64           startTime;                    // time this host was created can be used to obtain the uptime by means of (enet_time() - start_time)
     ENetList              dispatchQueue;
     int                   continueSending;
     size_t                packetSize;
     enet_uint8            headerFlags;
-    enet_uint32           totalSentData;
-    enet_uint32           totalSentPackets;
-    enet_uint32           totalReceivedData;
-    enet_uint32           totalReceivedPackets;
+    enet_uint64           totalSentData;                // total data sent
+    enet_uint64           totalSentPackets;             // total UDP packets received
+    enet_uint64           totalReceivedData;            // total data received
+    enet_uint64           totalReceivedPackets;         // total UDP packets sent
     ENetProtocol          commands[ENET_PROTOCOL_MAXIMUM_PACKET_COMMANDS];
     size_t                commandCount;
     ENetBuffer            buffers[ENET_BUFFER_MAXIMUM];
@@ -770,31 +789,13 @@ typedef struct _ENetHost
     ENetAddress           receivedAddress;
     enet_uint8*           receivedData;
     enet_uint32           receivedDataLength;
-    ENetInterceptCallback interceptCallback;
+    ENetInterceptCallback interceptCallback;            // callback the user can set to intercept received raw UDP packets
     enet_uint32           connectedPeers;
     size_t                bandwidthLimitedPeers;
-    enet_uint16           duplicatePeers;
-    enet_uint32           maximumPacketSize;
-    size_t                maximumWaitingData;
+    enet_uint16           duplicatePeers;               // optional number of allowed peers from duplicate IPs, defaults to ENET_PROTOCOL_MAXIMUM_PEER_COUNT
+    enet_uint32           maximumPacketSize;            // the maximum allowable packet size that may be sent or received on a peer
+    size_t                maximumWaitingData;           // the maximum aggregate amount of buffer space a peer may use waiting for packets to be delivered
 } ENetHost;
-
-typedef enum _ENetEventType 
-{
-    ENET_EVENT_TYPE_NONE = 0,
-    ENET_EVENT_TYPE_CONNECT,
-    ENET_EVENT_TYPE_DISCONNECT,
-    ENET_EVENT_TYPE_RECEIVE,
-    ENET_EVENT_TYPE_TIMEOUT
-} ENetEventType;
-
-typedef struct _ENetEvent 
-{
-    ENetEventType type;
-    ENetPeer*     peer;
-    enet_uint8    channelId;
-    enet_uint32   data;
-    ENetPacket*   packet;
-} ENetEvent;
 
 
 /**************************************************************************
@@ -803,9 +804,9 @@ typedef struct _ENetEvent
 
 ENET_API int                   enet_initialize(void);
 ENET_API int                   enet_initialize_with_callbacks(const ENetCallbacks* callbacks);
-ENET_API void                  enet_deinitialize(void);
+ENET_API void                  enet_finalize(void);
 ENET_API ENetVersion           enet_linked_version(void);
-ENET_API enet_uint64           enet_time_get(void);
+ENET_API enet_uint64           enet_time(void);
 
 ENET_API ENetSocket            enet_socket_create(ENetSocketType type);
 ENET_API int                   enet_socket_bind(ENetSocket socket, const ENetAddress* address);
@@ -893,10 +894,10 @@ ENET_API void                  enet_packet_dispose(ENetPacket* packet);
 
 ENET_API ENetPeer*             enet_host_get_peer(ENetHost* host, enet_uint32 index);
 ENET_API enet_uint32           enet_host_get_peers_count(ENetHost* host);
-ENET_API enet_uint32           enet_host_get_packets_sent(ENetHost* host);
-ENET_API enet_uint32           enet_host_get_packets_received(ENetHost* host);
-ENET_API enet_uint32           enet_host_get_bytes_sent(ENetHost* host);
-ENET_API enet_uint32           enet_host_get_bytes_received(ENetHost* host);
+ENET_API enet_uint64           enet_host_get_packets_sent(ENetHost* host);
+ENET_API enet_uint64           enet_host_get_packets_received(ENetHost* host);
+ENET_API enet_uint64           enet_host_get_bytes_sent(ENetHost* host);
+ENET_API enet_uint64           enet_host_get_bytes_received(ENetHost* host);
 
 ENET_API enet_uint32           enet_peer_get_id(ENetPeer* peer);
 ENET_API int                   enet_peer_get_ip(ENetPeer* peer, char* ip, size_t length);
@@ -908,7 +909,7 @@ ENET_API enet_uint32           enet_peer_get_rtt(ENetPeer* peer);
 ENET_API enet_uint32           enet_peer_get_lastsendtime(ENetPeer* peer);
 ENET_API enet_uint32           enet_peer_get_lastreceivetime(ENetPeer* peer);
 ENET_API enet_uint64           enet_peer_get_packets_sent(ENetPeer* peer);
-ENET_API enet_uint32           enet_peer_get_packets_lost(ENetPeer* peer);
+ENET_API enet_uint64           enet_peer_get_packets_lost(ENetPeer* peer);
 ENET_API enet_uint64           enet_peer_get_bytes_sent(ENetPeer* peer);
 ENET_API enet_uint64           enet_peer_get_bytes_received(ENetPeer* peer);
 ENET_API void*                 enet_peer_get_userdata(ENetPeer* peer);

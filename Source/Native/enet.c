@@ -1358,7 +1358,7 @@ static int enet_protocol_handle_accept(ENetHost* host, ENetEvent* event, ENetPee
 
 static int enet_protocol_handle_incoming_commands(ENetHost* host, ENetEvent* event) 
 {
-	if (host->receivedDataLength < ENET_HOST_PACKET_DATA_LENGTH_MIN || host->receivedDataLength > ENET_HOST_PACKET_DATA_LENGTH_MAX)
+	if (host->receivedDataLength < ((size_t)&((ENetProtocolHeader*)0)->sentTime) || host->receivedDataLength > ENET_HOST_PACKET_DATA_LENGTH_MAX)
 		return 0;
 
 	ENetProtocolHeader* header = (ENetProtocolHeader*)host->receivedData;
@@ -1367,7 +1367,7 @@ static int enet_protocol_handle_incoming_commands(ENetHost* host, ENetEvent* eve
 	enet_uint8 sessionId = flags & ENET_PROTOCOL_HEADER_SESSION;
     enet_uint16 peerId = ENET_NET_TO_HOST_16(header->peerId);
 
-    size_t headerSize = ENET_HOST_PACKET_DATA_LENGTH_MIN;
+    size_t headerSize = ((size_t)&((ENetProtocolHeader*)0)->sentTime);
 
     const bool hasTIME = (bool)(flags & ENET_PROTOCOL_HEADER_FLAG_TIME);
     if (hasTIME)
@@ -1381,7 +1381,7 @@ static int enet_protocol_handle_incoming_commands(ENetHost* host, ENetEvent* eve
         return 0;
 
 	ENetPeer* peer;
-	if (peerId == ENET_PROTOCOL_MAXIMUM_PEER_ID)
+	if (peerId == ENET_PROTOCOL_NULL_PEER)
 		peer = NULL;
 	else if (peerId >= host->peerCount)
 		return 0;
@@ -1392,14 +1392,15 @@ static int enet_protocol_handle_incoming_commands(ENetHost* host, ENetEvent* eve
 		if (peer->state == ENET_PEER_STATE_DISCONNECTED 
             || peer->state == ENET_PEER_STATE_ZOMBIE 
 			|| (!in6_equal(host->receivedAddress.host, peer->address.host) || host->receivedAddress.port != peer->address.port) 
-			|| (peer->outgoingPeerId < ENET_PROTOCOL_MAXIMUM_PEER_ID && sessionId != peer->incomingSessionId))
+			|| (peer->outgoingPeerId <= ENET_PROTOCOL_MAXIMUM_PEER_ID && sessionId != peer->incomingSessionId))
 		{
 			return 0;
 		}
 	}
 
 #ifdef ENET_LZ4
-	if (flags & ENET_PROTOCOL_HEADER_FLAG_COMP) 
+    const bool isCompressed = (bool)(flags & ENET_PROTOCOL_HEADER_FLAG_COMP);
+	if (isCompressed)
 	{
 		size_t originalSize = LZ4_decompress_safe((const char*)host->receivedData + headerSize, (char*)host->packetData[1] + headerSize, (int)(host->receivedDataLength - headerSize), (int)(ENET_HOST_PACKET_DATA_LENGTH_MAX - headerSize));
 
@@ -1606,7 +1607,7 @@ static int enet_protocol_receive_incoming_commands(ENetHost* host, ENetEvent* ev
 
 		if (host->interceptCallback != NULL) 
 		{
-			switch (host->interceptCallback(host, (void*)event)) 
+			switch (host->interceptCallback(host, event)) 
 			{
 			case 1:
 				if (event != NULL && event->type != ENET_EVENT_TYPE_NONE)
@@ -2033,7 +2034,7 @@ static int enet_protocol_send_outgoing_commands(ENetHost* host, ENetEvent* event
 			}
 			else 
 			{
-                host->buffers->dataLength = ENET_HOST_PACKET_DATA_LENGTH_MIN;
+                host->buffers->dataLength = ((size_t)&((ENetProtocolHeader*)0)->sentTime);
 			}
 
 #ifdef ENET_LZ4
@@ -2075,20 +2076,22 @@ static int enet_protocol_send_outgoing_commands(ENetHost* host, ENetEvent* event
                 }
 			}
 #endif
+            bool useCRC = host->crcEnabled;
+            if (useCRC)
+                host->headerFlags |= ENET_PROTOCOL_HEADER_FLAG_CRC;
 
-			if (currentPeer->outgoingPeerId < ENET_PROTOCOL_MAXIMUM_PEER_ID)
+			if (currentPeer->outgoingPeerId <= ENET_PROTOCOL_MAXIMUM_PEER_ID)
 				host->headerFlags |= currentPeer->outgoingSessionId;
 
             header->flags = host->headerFlags;
 			header->peerId = ENET_HOST_TO_NET_16(currentPeer->outgoingPeerId);
 
-			if (host->crcEnabled) 
+			if (useCRC) 
 			{
 				enet_uint32* checksum = (enet_uint32*)&headerData[host->buffers->dataLength];
-				*checksum = currentPeer->outgoingPeerId < ENET_PROTOCOL_MAXIMUM_PEER_ID ? currentPeer->connectId : 0;
+				*checksum = currentPeer->outgoingPeerId <= ENET_PROTOCOL_MAXIMUM_PEER_ID ? currentPeer->connectId : 0;
 				host->buffers->dataLength += sizeof(enet_uint32);
 				*checksum = enet_crc32(host->buffers, host->bufferCount);
-                host->headerFlags |= ENET_PROTOCOL_HEADER_FLAG_CRC;
 			}
 
 #ifdef ENET_LZ4
@@ -2120,7 +2123,7 @@ static int enet_protocol_send_outgoing_commands(ENetHost* host, ENetEvent* event
 
 void enet_host_flush(ENetHost* host) 
 {
-	host->serviceTime = (enet_uint32)enet_time_get();
+	host->serviceTime = (enet_uint32)enet_time();
 	enet_protocol_send_outgoing_commands(host, NULL, 0);
 }
 
@@ -2160,7 +2163,7 @@ int enet_host_service(ENetHost* host, ENetEvent* event, enet_uint32 timeout)
 		}
 	}
 
-	host->serviceTime = (enet_uint32)enet_time_get();
+	host->serviceTime = (enet_uint32)enet_time();
 	timeout += host->serviceTime;
 
 	enet_uint32 waitCondition = 0;
@@ -2238,7 +2241,7 @@ int enet_host_service(ENetHost* host, ENetEvent* event, enet_uint32 timeout)
 
 		do 
 		{
-			host->serviceTime = (enet_uint32)enet_time_get();
+			host->serviceTime = (enet_uint32)enet_time();
 
 			if (ENET_TIME_GREATER_EQUAL(host->serviceTime, timeout))
 				return 0;
@@ -2251,7 +2254,7 @@ int enet_host_service(ENetHost* host, ENetEvent* event, enet_uint32 timeout)
 		} 
 		while (waitCondition & ENET_SOCKET_WAIT_INTERRUPT);
 
-		host->serviceTime = (enet_uint32)enet_time_get();
+		host->serviceTime = (enet_uint32)enet_time();
 	} while (waitCondition & ENET_SOCKET_WAIT_RECEIVE);
 
 	return 0;
@@ -2548,9 +2551,12 @@ void enet_peer_on_disconnect(ENetPeer* peer)
 
 void enet_peer_reset(ENetPeer* peer) 
 {
+    if (peer == NULL)
+        return;
+
 	enet_peer_on_disconnect(peer);
 
-	peer->outgoingPeerId = ENET_PROTOCOL_MAXIMUM_PEER_ID;
+	peer->outgoingPeerId = ENET_PROTOCOL_NULL_PEER;
 	peer->state = ENET_PEER_STATE_DISCONNECTED;
 	peer->incomingBandwidth = 0;
 	peer->outgoingBandwidth = 0;
@@ -3116,7 +3122,7 @@ notifyError:
 
 ENetHost* enet_host_create(const ENetAddress* localAddress, size_t peerCount, enet_uint16 channelLimit, enet_uint32 incomingBandwidth, enet_uint32 outgoingBandwidth) 
 {
-	if (peerCount > ENET_PROTOCOL_MAXIMUM_PEER_ID)
+	if (peerCount > ENET_PROTOCOL_MAXIMUM_PEER_COUNT)
 		return NULL;
 
 	ENetHost* host = (ENetHost*)enet_malloc(sizeof(ENetHost));
@@ -3183,6 +3189,7 @@ ENetHost* enet_host_create(const ENetAddress* localAddress, size_t peerCount, en
 	host->refuseConnections = 0;
 	host->mtu = ENET_HOST_DEFAULT_MTU;
 	host->peerCount = peerCount;
+    host->startTime = enet_time();
 	host->commandCount = 0;
 	host->bufferCount = 0;
 	host->compressionEnabled = 0;
@@ -3197,7 +3204,7 @@ ENetHost* enet_host_create(const ENetAddress* localAddress, size_t peerCount, en
 	host->totalReceivedPackets = 0;
 	host->connectedPeers = 0;
 	host->bandwidthLimitedPeers = 0;
-	host->duplicatePeers = ENET_PROTOCOL_MAXIMUM_PEER_ID;
+	host->duplicatePeers = ENET_PROTOCOL_MAXIMUM_PEER_COUNT;
 	host->maximumPacketSize = ENET_HOST_DEFAULT_MAXIMUM_PACKET_SIZE;
 	host->maximumWaitingData = ENET_HOST_DEFAULT_MAXIMUM_WAITING_DATA;
 	host->interceptCallback = NULL;
@@ -3337,7 +3344,7 @@ ENetPeer* enet_host_connect(ENetHost* host, const ENetAddress* address, enet_uin
 	}
 
 	ENetProtocol command;
-	command.header.command = ENET_PROTOCOL_COMMAND_CONNECT | ENET_PROTOCOL_COMMAND_FLAG_ACK;
+	command.header.command = ENET_PROTOCOL_COMMAND_CONNECT;
 	command.header.channelId = 0xFF;
 
 	command.connect.outgoingPeerId = ENET_HOST_TO_NET_16(currentPeer->incomingPeerId);
@@ -3396,7 +3403,7 @@ void enet_host_bandwidth_limit(ENetHost* host, enet_uint32 incomingBandwidth, en
 
 void enet_host_bandwidth_throttle(ENetHost* host) 
 {
-	const enet_uint32 timeCurrent = (enet_uint32)enet_time_get();
+	const enet_uint32 timeCurrent = (enet_uint32)enet_time();
 	const enet_uint32 elapsedTime = timeCurrent - host->bandwidthThrottleEpoch;
 
 	if (elapsedTime < ENET_HOST_BANDWIDTH_THROTTLE_INTERVAL)
@@ -3653,7 +3660,7 @@ int clock_gettime(int X, struct timespec *ts)
 }
 #endif
 
-enet_uint64 enet_time_get() 
+enet_uint64 enet_time()
 {
 	static enet_uint64 start_time_ns = 0;
 
@@ -3720,22 +3727,22 @@ enet_uint32 enet_host_get_peers_count(ENetHost* host)
 	return host->connectedPeers;
 }
 
-enet_uint32 enet_host_get_packets_sent(ENetHost* host) 
+enet_uint64 enet_host_get_packets_sent(ENetHost* host) 
 {
 	return host->totalSentPackets;
 }
 
-enet_uint32 enet_host_get_packets_received(ENetHost* host) 
+enet_uint64 enet_host_get_packets_received(ENetHost* host) 
 {
 	return host->totalReceivedPackets;
 }
 
-enet_uint32 enet_host_get_bytes_sent(ENetHost* host) 
+enet_uint64 enet_host_get_bytes_sent(ENetHost* host) 
 {
 	return host->totalSentData;
 }
 
-enet_uint32 enet_host_get_bytes_received(ENetHost* host) 
+enet_uint64 enet_host_get_bytes_received(ENetHost* host) 
 {
 	return host->totalReceivedData;
 }
@@ -3790,7 +3797,7 @@ enet_uint64 enet_peer_get_packets_sent(ENetPeer* peer)
 	return peer->totalPacketsSent;
 }
 
-enet_uint32 enet_peer_get_packets_lost(ENetPeer* peer) 
+enet_uint64 enet_peer_get_packets_lost(ENetPeer* peer) 
 {
 	return peer->totalPacketsLost;
 }
@@ -3827,7 +3834,7 @@ int enet_initialize(void)
 	return 0;
 }
 
-void enet_deinitialize(void) { }
+void enet_finalize(void) { }
 
 enet_uint32 enet_host_random_seed(void) 
 {
@@ -4463,7 +4470,7 @@ int inet_pton(int af, const char* src, struct in6_addr* dst)
 		return 0;
 	}
 
-	void enet_deinitialize(void) 
+	void enet_finalize(void) 
 	{
 		timeEndPeriod(1);
 		WSACleanup();

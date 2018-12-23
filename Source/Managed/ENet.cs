@@ -96,6 +96,7 @@ namespace ENet
     public delegate void FreeCallback(IntPtr memory);
     public delegate void OutOfMemoryCallback();
     public delegate void PacketFreeCallback(Packet packet);
+    public delegate void HostInterceptCallback(ENetEvent packet);
 
     internal static class ArrayPool
     {
@@ -312,7 +313,7 @@ namespace ENet
             }
         }
 
-        public uint PacketsSent
+        public ulong PacketsSent
         {
             get
             {
@@ -321,7 +322,7 @@ namespace ENet
             }
         }
 
-        public uint PacketsReceived
+        public ulong PacketsReceived
         {
             get
             {
@@ -330,7 +331,7 @@ namespace ENet
             }
         }
 
-        public uint BytesSent
+        public ulong BytesSent
         {
             get
             {
@@ -339,12 +340,30 @@ namespace ENet
             }
         }
 
-        public uint BytesReceived
+        public ulong BytesReceived
         {
             get
             {
                 ThrowIfNotValid();
                 return Native.enet_host_get_bytes_received(nativeHost);
+            }
+        }
+
+        public ulong StartTime
+        {
+            get
+            {
+                ThrowIfNotValid();
+                return Native.enet_host_get_start_time(nativeHost);
+            }
+        }
+
+        public ulong Uptime
+        {
+            get
+            {
+                ThrowIfNotValid();
+                return Native.enet_time_get() - Native.enet_host_get_start_time(nativeHost);
             }
         }
 
@@ -515,6 +534,12 @@ namespace ENet
             ThrowIfNotValid();
 
             Native.enet_host_flush(nativeHost);
+        }
+
+        public void SetInterceptCallback(HostInterceptCallback callback)
+        {
+            ThrowIfNotValid();
+            Native.enet_host_set_intercept_callback(nativeHost, Marshal.GetFunctionPointerForDelegate(callback));
         }
 
         #region IDisposable
@@ -824,14 +849,14 @@ namespace ENet
             return Native.enet_initialize_with_callbacks(version, ref callbacks.nativeCallbacks) == 0;
         }
 
-        public static void Deinitialize()
+        public static void Finalize()
         {
-            Native.enet_deinitialize();
+            Native.enet_finalize();
         }
 
         public static ulong Time
         {
-            get { return Native.enet_time_get(); }
+            get { return Native.enet_time(); }
         }
     }
 
@@ -851,7 +876,7 @@ namespace ENet
         internal static extern int enet_initialize_with_callbacks(uint version, ref ENetCallbacks callbacks);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern void enet_deinitialize();
+        internal static extern void enet_finalize();
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
         internal static extern ulong enet_time_get();
@@ -911,16 +936,16 @@ namespace ENet
         internal static extern uint enet_host_get_peers_count(IntPtr host);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern uint enet_host_get_packets_sent(IntPtr host);
+        internal static extern ulong enet_host_get_packets_sent(IntPtr host);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern uint enet_host_get_packets_received(IntPtr host);
+        internal static extern ulong enet_host_get_packets_received(IntPtr host);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern uint enet_host_get_bytes_sent(IntPtr host);
+        internal static extern ulong enet_host_get_bytes_sent(IntPtr host);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern uint enet_host_get_bytes_received(IntPtr host);
+        internal static extern ulong enet_host_get_bytes_received(IntPtr host);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
         internal static extern void enet_host_flush(IntPtr host);
@@ -945,6 +970,9 @@ namespace ENet
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
         internal static extern byte enet_host_get_refuse_connections(IntPtr host);
+
+        [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void enet_host_set_intercept_callback(IntPtr host, IntPtr callback);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
         internal static extern void enet_peer_throttle_configure(IntPtr peer, uint interval, uint acceleration, uint deceleration);
@@ -980,7 +1008,7 @@ namespace ENet
         internal static extern ulong enet_peer_get_packets_sent(IntPtr peer);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern uint enet_peer_get_packets_lost(IntPtr peer);
+        internal static extern ulong enet_peer_get_packets_lost(IntPtr peer);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
         internal static extern ulong enet_peer_get_bytes_sent(IntPtr peer);

@@ -8,21 +8,36 @@
 
 #define TEST_PORT                       1234
 #define TEST_CHANNEL_COUNT              2
-#define TEST_CLIENT_CONNECT_TIMEOUT     5000
+#define TEST_CONNECT_TIMEOUT            5000
+
+static const char* ChallengeMsg = "Hello, I'm a client who are you?";
+static const char* ResponseMsg = "Hi, I'm the server.";
+
+int send_message(ENetPeer* peer, const void* data, size_t length, enet_uint16 flags, enet_uint8 channelId)
+{
+    ENetPacket * packet = enet_packet_create(data, length, flags);
+    return enet_peer_send(peer, channelId, packet);
+}
+
+#define client_info(M, ...) fprintf(stdout, "[CLIENT] " M, __VA_ARGS__)
+#define client_error(M, ...) fprintf(stderr, "[CLIENT] " M, __VA_ARGS__)
 
 void client()
 {
-    printf("Client thread started\n");
+    char name[256] = {0};
+
+    client_info("Thread started\n");
 
     ENetHost* client = enet_host_create(
-        NULL,   // create a client host
-        1,      // only allow 1 outgoing connection
-        2,      // allow up 2 channels to be used, 0 and 1
-        0,      // assume any amount of incoming bandwidth
-        0       // assume any amount of incoming bandwidth
+        NULL,                   // create a client host
+        1,                      // only allow 1 outgoing connection
+        TEST_CHANNEL_COUNT,     // allow up 2 channels to be used, 0 and 1
+        0,                      // assume any amount of incoming bandwidth
+        0                       // assume any amount of incoming bandwidth
     );
 
-    ENetPeer* peer = NULL;
+    
+    ENetPeer* peer = NULL;    
 
     if (client == NULL)
     {
@@ -34,71 +49,144 @@ void client()
     address.host = ENET_HOST_LOCALHOST;
     address.port = TEST_PORT;
     address.scope_id = ENET_SCOPE_ID_NONE;
-    
+
     /* Initiate the connection, allocating the two channels 0 and 1. */
     peer = enet_host_connect(client, &address, TEST_CHANNEL_COUNT, 0);
     if (peer == NULL)
     {
-        fprintf(stderr, "ENet host connection failed.\n");
+        client_error("Connection failed. Peer is null.\n");
         goto finish;
     }
 
     ENetEvent event;
-    // Wait up to 5 seconds for the connection attempt to succeed.
-    if (enet_host_service(client, &event, TEST_CLIENT_CONNECT_TIMEOUT) > 0
-     && event.type == ENET_EVENT_TYPE_CONNECT)
+    while (enet_host_service(client, (ENetEvent*)memset(&event, 0, sizeof(event)), TEST_CONNECT_TIMEOUT) > 0)
     {
-        char name[256];
-        name[0] = '\0';
-        enet_peer_get_name(peer, name, sizeof(name));
-        printf("Client connected to %s:%d .\n", name, enet_peer_get_port(peer));
-    }
-    else
-    {
-        char name[256];
-        name[0] = '\0';
-        enet_address_get_host_name(&address, name, sizeof(name));
-        fprintf(stderr, "Connection to %s:%d failed with event %d.", name, address.port, event.type);
+        // Clients should onnly receive events from the connected peer.
+        if (peer != event.peer)
+        {
+            client_error("Connected peer and event peer do not match.\n");
+            goto terminate;
+        }
 
-        // Either the 5 seconds are up or a disconnect event was received. Reset the peer in this case.
-        enet_peer_reset(peer);
+        switch (event.type)
+        {
+        case ENET_EVENT_TYPE_CONNECT:
+            enet_peer_get_name(event.peer, name, sizeof(name));
+            client_info("Connected to %s:%d.\n", name, enet_peer_get_port(event.peer));
+            send_message(event.peer, ChallengeMsg, strlen(ChallengeMsg) + 1, ENET_PACKET_FLAG_RELIABLE, 0);
+            break;
+        case ENET_EVENT_TYPE_RECEIVE:
+            client_info("Received packet of %Iu bytes from %s:%d on channel %u.\n", event.packet->dataLength, name, enet_peer_get_port(event.peer), event.channelId);
+            if (event.packet->dataLength != (strlen(ResponseMsg) + 1))
+            {
+                client_error("Invalid packet size.\n");
+                goto terminate;
+            }
+
+            if (memcmp(event.packet->data, ResponseMsg, event.packet->dataLength) != 0)
+            {
+                client_error("Invalid packet data.\n");
+                goto terminate;
+            }
+
+            client_info("Packet data: %s.\n", event.packet->data);
+
+            enet_packet_destroy(event.packet); // release the packet now that we're done using it.
+            break;
+        case ENET_EVENT_TYPE_DISCONNECT:
+            client_info("Disconnected from %s:%d.\n", name, enet_peer_get_port(event.peer));
+            break;
+        case ENET_EVENT_TYPE_TIMEOUT:
+            client_error("Timeout.\n");
+            goto terminate;
+        }
     }
 
+terminate:
     enet_host_destroy(client);
 
 finish:
-    printf("Client thread finished\n");
+    client_info("Thread finished\n");
 }
+
+#undef client_info
+#undef client_error
+
+#define server_info(M, ...) fprintf(stdout, "[SERVER] " M, __VA_ARGS__)
+#define server_error(M, ...) fprintf(stderr, "[SERVER] " M, __VA_ARGS__)
 
 void server()
 {
-    printf("Server thread started\n");
+    char name[256] = {0};
+
+    server_info("Thread started\n");
 
     ENetAddress address;
     address.host = ENET_HOST_ANY;
-    address.port = 1234;
-    address.scope_id = 0;
+    address.port = TEST_PORT;
+    address.scope_id = ENET_SCOPE_ID_NONE;
 
     ENetHost* server = enet_host_create(
-        &address,   // the address to bind the server host to
-        32,         // allow up to 32 clients and/or outgoing connections
-        2,          // allow up to 2 channels to be used, 0 and 1
-        0,          // assume any amount of incoming bandwidth
-        0           // assume any amount of outgoing bandwidth
+        &address,           // the address to bind the server host to
+        32,                 // allow up to 32 clients and/or outgoing connections
+        TEST_CHANNEL_COUNT, // allow up to 2 channels to be used, 0 and 1
+        0,                  // assume any amount of incoming bandwidth
+        0                   // assume any amount of outgoing bandwidth
     );
 
     if (server == NULL)
     {
-        fprintf(stderr, "An error occurred while trying to create a server host.\n");
+        server_error("An error occurred while trying to create a server host.\n");
         goto finish;
     }
 
+    ENetEvent event;
+    while (enet_host_service(server, (ENetEvent*)memset(&event, 0, sizeof(event)), TEST_CONNECT_TIMEOUT) > 0)
+    {
+        switch (event.type)
+        {
+        case ENET_EVENT_TYPE_CONNECT:
+            enet_peer_get_name(event.peer, name, sizeof(name));
+            server_info("Connected to %s:%d.\n", name, enet_peer_get_port(event.peer));
+            break;
+        case ENET_EVENT_TYPE_RECEIVE:
+            server_info("Received packet of %Iu bytes from %s:%d on channel %u.\n", event.packet->dataLength, name, enet_peer_get_port(event.peer), event.channelId);
+            if (event.packet->dataLength != (strlen(ChallengeMsg) + 1))
+            {
+                server_error("Invalid packet size.\n");
+                goto terminate;
+            }
 
+            if (memcmp(event.packet->data, ChallengeMsg, event.packet->dataLength) != 0)
+            {
+                server_error("Invalid packet data.\n");
+                goto terminate;
+            }
+
+            server_info("Packet data: %s.\n", event.packet->data);
+            enet_packet_destroy(event.packet); // release the packet now that we're done using it.
+
+            send_message(event.peer, ResponseMsg, strlen(ResponseMsg) + 1, ENET_PACKET_FLAG_RELIABLE, 1);
+            break;
+        case ENET_EVENT_TYPE_DISCONNECT:
+            server_info("Disconnected from %s:%d.\n", name, enet_peer_get_port(event.peer));
+            break;
+        case ENET_EVENT_TYPE_TIMEOUT:
+            server_error("Timeout.\n");
+            goto terminate;
+        }
+    }
+
+terminate:
     enet_host_destroy(server);
 
 finish:
-    printf("Server thread finished\n");
+    server_info("Thread finished\n");
 }
+
+#undef server_info
+#undef server_error
+
 
 int main(int argc, char* argv[])
 {
@@ -108,10 +196,12 @@ int main(int argc, char* argv[])
         exit(EXIT_FAILURE);
     }
 
-    atexit(enet_deinitialize);
+    atexit(enet_finalize);
 
+    std::thread server(&server);
     std::thread client(&client);
-    server();
+
+    server.join();
     client.join();
 
     return EXIT_SUCCESS;
