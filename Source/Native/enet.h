@@ -407,7 +407,7 @@ typedef struct _ENetProtocolConnect
     enet_uint32                     packetThrottleAcceleration;
     enet_uint32                     packetThrottleDeceleration;
     enet_uint32                     connectId;
-    enet_uint32                     data;
+    enet_uint32                     status;
 } ENET_PACKED ENetProtocolConnect;
 
 typedef struct _ENetProtocolAccept
@@ -445,7 +445,7 @@ typedef struct _ENetProtocolThrottleConfigure
 typedef struct _ENetProtocolDisconnect 
 {
     ENetProtocolCommandHeader       header;
-    enet_uint32                     data;
+    enet_uint32                     status;
 } ENET_PACKED ENetProtocolDisconnect;
 
 typedef struct _ENetProtocolPing 
@@ -666,7 +666,7 @@ typedef struct _ENetEvent
     ENetEventType       type;
     struct _ENetPeer*   peer;
     enet_uint8          channelId;
-    enet_uint32         data;
+    enet_uint32         status;
     ENetPacket*         packet;
 } ENetEvent;
 
@@ -747,7 +747,7 @@ typedef struct _ENetPeer
     enet_uint16       incomingUnsequencedGroup;
     enet_uint16       outgoingUnsequencedGroup;
     enet_uint32       unsequencedWindow[ENET_PEER_UNSEQUENCED_WINDOW_SIZE / 32];
-    enet_uint32       eventData;
+    enet_uint32       eventStatus;
     size_t            totalWaitingData;
 } ENetPeer;
 
@@ -846,12 +846,14 @@ ENET_API enet_uint8            enet_host_get_crc_enabled(ENetHost* host);
 ENET_API void                  enet_host_set_refuse_connections(ENetHost* host, enet_uint8 value);
 ENET_API enet_uint8            enet_host_get_refuse_connections(ENetHost* host);
 
-ENET_API ENetPeer*             enet_host_connect(ENetHost* host, const ENetAddress* address, enet_uint16 channelCount, enet_uint32 data);
+ENET_API void                  enet_host_set_channel_limit(ENetHost* host, enet_uint16 channelLimit);
+ENET_API enet_uint16           enet_host_get_channel_limit(ENetHost* host);
+
+ENET_API ENetPeer*             enet_host_connect(ENetHost* host, const ENetAddress* address, enet_uint16 channelCount, enet_uint32 status);
 ENET_API int                   enet_host_check_events(ENetHost* host, ENetEvent* event);
 ENET_API int                   enet_host_service(ENetHost* host, ENetEvent* event, enet_uint32 timeout);
 ENET_API void                  enet_host_flush(ENetHost* host);
 ENET_API void                  enet_host_broadcast(ENetHost* host, enet_uint8 channelId, ENetPacket* packet);
-ENET_API void                  enet_host_channel_limit(ENetHost* host, enet_uint16 channelLimit);
 ENET_API void                  enet_host_bandwidth_limit(ENetHost* host, enet_uint32 incomingBandwidth, enet_uint32 outgoingBandwidth);
 
          void                  enet_host_bandwidth_throttle(ENetHost* host);
@@ -864,9 +866,9 @@ ENET_API void                  enet_peer_ping(ENetPeer* peer);
 ENET_API void                  enet_peer_set_ping_interval(ENetPeer* peer, enet_uint32 pingInterval);
 ENET_API enet_uint32           enet_peer_get_ping_interval(ENetPeer* peer);
 
-ENET_API void                  enet_peer_disconnect(ENetPeer* peer, enet_uint32 data);
-ENET_API void                  enet_peer_disconnect_immediately(ENetPeer* peer, enet_uint32 data);
-ENET_API void                  enet_peer_disconnect_when_ready(ENetPeer* peer, enet_uint32 data);
+ENET_API void                  enet_peer_disconnect(ENetPeer* peer, enet_uint32 status);
+ENET_API void                  enet_peer_disconnect_immediately(ENetPeer* peer, enet_uint32 status);
+ENET_API void                  enet_peer_disconnect_when_ready(ENetPeer* peer, enet_uint32 status);
 
 ENET_API void                  enet_peer_reset(ENetPeer* peer);
 
@@ -894,6 +896,7 @@ ENET_API void                  enet_packet_dispose(ENetPacket* packet);
 
 ENET_API ENetPeer*             enet_host_get_peer(ENetHost* host, enet_uint32 index);
 ENET_API enet_uint32           enet_host_get_peers_count(ENetHost* host);
+ENET_API enet_uint32           enet_host_get_peers_capacity(ENetHost* host);
 ENET_API enet_uint64           enet_host_get_packets_sent(ENetHost* host);
 ENET_API enet_uint64           enet_host_get_packets_received(ENetHost* host);
 ENET_API enet_uint64           enet_host_get_bytes_sent(ENetHost* host);
@@ -914,6 +917,7 @@ ENET_API enet_uint64           enet_peer_get_bytes_sent(ENetPeer* peer);
 ENET_API enet_uint64           enet_peer_get_bytes_received(ENetPeer* peer);
 ENET_API void*                 enet_peer_get_userdata(ENetPeer* peer);
 ENET_API void                  enet_peer_set_userdata(ENetPeer* peer, const void* data);
+ENET_API enet_uint16           enet_peer_get_channel_count(ENetPeer* peer);
 
 #ifdef __cplusplus
 }

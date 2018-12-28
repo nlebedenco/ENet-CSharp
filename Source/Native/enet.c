@@ -492,7 +492,7 @@ static int enet_protocol_dispatch_incoming_commands(ENetHost* host, ENetEvent* e
 
 			event->type = ENET_EVENT_TYPE_CONNECT;
 			event->peer = peer;
-			event->data = peer->eventData;
+			event->status = peer->eventStatus;
 			return 1;
 
 		case ENET_PEER_STATE_ZOMBIE:
@@ -500,7 +500,7 @@ static int enet_protocol_dispatch_incoming_commands(ENetHost* host, ENetEvent* e
 
 			event->type = ENET_EVENT_TYPE_DISCONNECT;
 			event->peer = peer;
-			event->data = peer->eventData;
+			event->status = peer->eventStatus;
 
 			enet_peer_reset(peer);
 			return 1;
@@ -546,7 +546,7 @@ static void enet_protocol_notify_connect(ENetHost* host, ENetPeer* peer, ENetEve
 		peer->totalPacketsLost = 0;
 		event->type = ENET_EVENT_TYPE_CONNECT;
 		event->peer = peer;
-		event->data = peer->eventData;
+		event->status = peer->eventStatus;
 	}
 	else 
 	{
@@ -567,13 +567,13 @@ static void enet_protocol_notify_disconnect(ENetHost* host, ENetPeer* peer, ENet
 	{
 		event->type = ENET_EVENT_TYPE_DISCONNECT;
 		event->peer = peer;
-		event->data = 0;
+		event->status = 0;
 
 		enet_peer_reset(peer);
 	}
 	else 
 	{
-		peer->eventData = 0;
+		peer->eventStatus = 0;
 		enet_protocol_dispatch_state(host, peer, ENET_PEER_STATE_ZOMBIE);
 	}
 }
@@ -591,13 +591,13 @@ static void enet_protocol_notify_disconnect_timeout(ENetHost*  host, ENetPeer*  
 	{
 		event->type = ENET_EVENT_TYPE_TIMEOUT;
 		event->peer = peer;
-		event->data = 0;
+		event->status = 0;
 
 		enet_peer_reset(peer);
 	}
 	else 
 	{
-		peer->eventData = 0;
+		peer->eventStatus = 0;
 		enet_protocol_dispatch_state(host, peer, ENET_PEER_STATE_ZOMBIE);
 	}
 }
@@ -751,7 +751,7 @@ static ENetPeer*  enet_protocol_handle_connect(ENetHost* host, ENetProtocol* com
 	peer->packetThrottleInterval = ENET_NET_TO_HOST_32(command->connect.packetThrottleInterval);
 	peer->packetThrottleAcceleration = ENET_NET_TO_HOST_32(command->connect.packetThrottleAcceleration);
 	peer->packetThrottleDeceleration = ENET_NET_TO_HOST_32(command->connect.packetThrottleDeceleration);
-	peer->eventData = ENET_NET_TO_HOST_32(command->connect.data);
+	peer->eventStatus = ENET_NET_TO_HOST_32(command->connect.status);
 
 	enet_uint8 incomingSession = command->connect.incomingSessionId == 0xFF ? peer->outgoingSessionId : command->connect.incomingSessionId;
     incomingSession = (incomingSession + 1) & ENET_PROTOCOL_HEADER_SESSION;
@@ -1195,7 +1195,7 @@ static int enet_protocol_handle_disconnect(ENetHost* host, ENetPeer* peer, const
 	}
 
 	if (peer->state != ENET_PEER_STATE_DISCONNECTED)
-		peer->eventData = ENET_NET_TO_HOST_32(command->disconnect.data);
+		peer->eventStatus = ENET_NET_TO_HOST_32(command->disconnect.status);
 
 	return 0;
 }
@@ -1286,7 +1286,7 @@ static int enet_protocol_handle_acknowledge(ENetHost* host, ENetEvent* event, EN
 		 && enet_list_empty(&peer->outgoingUnreliableCommands) 
 		 && enet_list_empty(&peer->sentReliableCommands))
 		{
-			enet_peer_disconnect(peer, peer->eventData);
+			enet_peer_disconnect(peer, peer->eventStatus);
 		}
 		break;
 
@@ -1311,7 +1311,7 @@ static int enet_protocol_handle_accept(ENetHost* host, ENetEvent* event, ENetPee
 	 || ENET_NET_TO_HOST_32(command->accept.packetThrottleDeceleration) != peer->packetThrottleDeceleration 
 	 || command->accept.connectId != peer->connectId) 
 	{
-		peer->eventData = 0;
+		peer->eventStatus = 0;
 		enet_protocol_dispatch_state(host, peer, ENET_PEER_STATE_ZOMBIE);
 		return -1;
 	}
@@ -1814,7 +1814,7 @@ static void enet_protocol_send_unreliable_outgoing_commands(ENetHost* host, ENet
 	 && enet_list_empty(&peer->outgoingUnreliableCommands) 
 	 && enet_list_empty(&peer->sentReliableCommands))
 	{
-		enet_peer_disconnect(peer, peer->eventData);
+		enet_peer_disconnect(peer, peer->eventStatus);
 	}
 }
 
@@ -2601,7 +2601,7 @@ void enet_peer_reset(ENetPeer* peer)
 	peer->windowSize = ENET_PROTOCOL_MAXIMUM_WINDOW_SIZE;
 	peer->incomingUnsequencedGroup = 0;
 	peer->outgoingUnsequencedGroup = 0;
-	peer->eventData = 0;
+	peer->eventStatus = 0;
 	peer->totalWaitingData = 0;
 
 	memset(peer->unsequencedWindow, 0, sizeof(peer->unsequencedWindow));
@@ -2637,7 +2637,7 @@ void enet_peer_timeout(ENetPeer* peer, enet_uint32 timeoutLimit, enet_uint32 tim
 	peer->timeoutMaximum = timeoutMaximum ? timeoutMaximum : ENET_PEER_TIMEOUT_MAXIMUM;
 }
 
-void enet_peer_disconnect_immediately(ENetPeer* peer, enet_uint32 data) 
+void enet_peer_disconnect_immediately(ENetPeer* peer, enet_uint32 status)
 {
 	if (peer->state == ENET_PEER_STATE_DISCONNECTED)
 		return;
@@ -2649,7 +2649,7 @@ void enet_peer_disconnect_immediately(ENetPeer* peer, enet_uint32 data)
 		ENetProtocol command;
 		command.header.command = ENET_PROTOCOL_COMMAND_DISCONNECT | ENET_PROTOCOL_COMMAND_FLAG_USQ;
 		command.header.channelId = 0xFF;
-		command.disconnect.data = ENET_HOST_TO_NET_32(data);
+		command.disconnect.status = ENET_HOST_TO_NET_32(status);
 
 		enet_peer_queue_outgoing_command(peer, &command, NULL, 0, 0);
 		enet_host_flush(peer->host);
@@ -2658,7 +2658,7 @@ void enet_peer_disconnect_immediately(ENetPeer* peer, enet_uint32 data)
 	enet_peer_reset(peer);
 }
 
-void enet_peer_disconnect(ENetPeer* peer, enet_uint32 data) 
+void enet_peer_disconnect(ENetPeer* peer, enet_uint32 status)
 {
 	if (peer->state == ENET_PEER_STATE_DISCONNECTING 
 	 || peer->state == ENET_PEER_STATE_DISCONNECTED 
@@ -2673,7 +2673,7 @@ void enet_peer_disconnect(ENetPeer* peer, enet_uint32 data)
 	ENetProtocol command;
 	command.header.command = ENET_PROTOCOL_COMMAND_DISCONNECT;
 	command.header.channelId = 0xFF;
-	command.disconnect.data = ENET_HOST_TO_NET_32(data);
+	command.disconnect.status = ENET_HOST_TO_NET_32(status);
 
 	if (peer->state == ENET_PEER_STATE_CONNECTED || peer->state == ENET_PEER_STATE_DISCONNECT_LATER) 
 		command.header.command |= ENET_PROTOCOL_COMMAND_FLAG_ACK;
@@ -2687,24 +2687,24 @@ void enet_peer_disconnect(ENetPeer* peer, enet_uint32 data)
 		enet_peer_on_disconnect(peer);
 		peer->state = ENET_PEER_STATE_DISCONNECTING;
 	}
-	else 
+	else // if (any connecting state)
 	{
 		enet_host_flush(peer->host);
 		enet_peer_reset(peer);
 	}
 }
 
-void enet_peer_disconnect_when_ready(ENetPeer* peer, enet_uint32 data) 
+void enet_peer_disconnect_when_ready(ENetPeer* peer, enet_uint32 status)
 {
 	if ((peer->state == ENET_PEER_STATE_CONNECTED || peer->state == ENET_PEER_STATE_DISCONNECT_LATER) 
 	 && !(enet_list_empty(&peer->outgoingReliableCommands) && enet_list_empty(&peer->outgoingUnreliableCommands) && enet_list_empty(&peer->sentReliableCommands))) 
 	{
 		peer->state = ENET_PEER_STATE_DISCONNECT_LATER;
-		peer->eventData = data;
+		peer->eventStatus = status;
 	}
 	else 
 	{
-		enet_peer_disconnect(peer, data);
+		enet_peer_disconnect(peer, status);
 	}
 }
 
@@ -3122,8 +3122,11 @@ notifyError:
 
 ENetHost* enet_host_create(const ENetAddress* localAddress, size_t peerCount, enet_uint16 channelLimit, enet_uint32 incomingBandwidth, enet_uint32 outgoingBandwidth) 
 {
-	if (peerCount > ENET_PROTOCOL_MAXIMUM_PEER_COUNT)
-		return NULL;
+	if (peerCount < 1)
+        peerCount = 1;
+
+    if (peerCount > ENET_PROTOCOL_MAXIMUM_PEER_COUNT)
+        peerCount ENET_PROTOCOL_MAXIMUM_PEER_COUNT;
 
 	ENetHost* host = (ENetHost*)enet_malloc(sizeof(ENetHost));
 
@@ -3292,7 +3295,7 @@ enet_uint8 enet_host_get_refuse_connections(ENetHost* host)
     return (host == NULL) ? 0 : host->refuseConnections;
 }
 
-ENetPeer* enet_host_connect(ENetHost* host, const ENetAddress* address, enet_uint16 channelCount, enet_uint32 data) 
+ENetPeer* enet_host_connect(ENetHost* host, const ENetAddress* address, enet_uint16 channelCount, enet_uint32 status)
 {
 	if (channelCount < ENET_PROTOCOL_MINIMUM_CHANNEL_COUNT)
 		channelCount = ENET_PROTOCOL_MINIMUM_CHANNEL_COUNT;
@@ -3359,7 +3362,7 @@ ENetPeer* enet_host_connect(ENetHost* host, const ENetAddress* address, enet_uin
 	command.connect.packetThrottleAcceleration = ENET_HOST_TO_NET_32(currentPeer->packetThrottleAcceleration);
 	command.connect.packetThrottleDeceleration = ENET_HOST_TO_NET_32(currentPeer->packetThrottleDeceleration);
 	command.connect.connectId = currentPeer->connectId;
-	command.connect.data = ENET_HOST_TO_NET_32(data);
+	command.connect.status = ENET_HOST_TO_NET_32(status);
 
 	enet_peer_queue_outgoing_command(currentPeer, &command, NULL, 0, 0);
 
@@ -3380,7 +3383,7 @@ void enet_host_broadcast(ENetHost* host, enet_uint8 channelId, ENetPacket* packe
 		enet_packet_destroy(packet);
 }
 
-void enet_host_channel_limit(ENetHost* host, enet_uint16 channelLimit)
+void enet_host_set_channel_limit(ENetHost* host, enet_uint16 channelLimit)
 {
 	if (channelLimit == 0 || channelLimit > ENET_PROTOCOL_MAXIMUM_CHANNEL_COUNT) 
 	{
@@ -3392,6 +3395,11 @@ void enet_host_channel_limit(ENetHost* host, enet_uint16 channelLimit)
 	}
 
 	host->channelLimit = channelLimit;
+}
+
+enet_uint16 enet_host_get_channel_limit(ENetHost* host)
+{
+    return host->channelLimit;
 }
 
 void enet_host_bandwidth_limit(ENetHost* host, enet_uint32 incomingBandwidth, enet_uint32 outgoingBandwidth) 
@@ -3727,6 +3735,11 @@ enet_uint32 enet_host_get_peers_count(ENetHost* host)
 	return host->connectedPeers;
 }
 
+enet_uint32 enet_host_get_peers_capacity(ENetHost* host)
+{
+    return host->peerCount;
+}
+
 enet_uint64 enet_host_get_packets_sent(ENetHost* host) 
 {
 	return host->totalSentPackets;
@@ -3822,6 +3835,10 @@ void enet_peer_set_userdata(ENetPeer* peer, const void* data)
 	peer->userData = (enet_uint32*)data;
 }
 
+enet_uint16 enet_peer_get_channel_count(ENetPeer* peer)
+{
+    return peer->channelCount;
+}
 
 	
 /**************************************************************************

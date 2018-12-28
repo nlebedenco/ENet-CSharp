@@ -46,7 +46,7 @@ namespace ENet
         None = 0,
         Connect = 1,
         Disconnect = 2,
-        Receive = 3,
+        Data = 3,
         Timeout = 4
     }
 
@@ -80,7 +80,7 @@ namespace ENet
         public EventType Type;
         public IntPtr Peer;
         public byte ChannelId;
-        public uint Data;
+        public uint Status;
         public IntPtr Packet;
     }
 
@@ -98,18 +98,10 @@ namespace ENet
     public delegate void PacketFreeCallback(Packet packet);
     public delegate void HostInterceptCallback(ENetEvent packet);
 
-    internal static class ArrayPool
+    internal static class StaticMemory
     {
         [ThreadStatic]
-        private static byte[] buffer;
-
-        public static byte[] GetBuffer()
-        {
-            if (buffer == null)
-                buffer = new byte[64];
-
-            return buffer;
-        }
+        public static readonly byte[] Buffer = new byte[128];
     }
 
     public struct Address
@@ -125,7 +117,7 @@ namespace ENet
         {
             get
             {
-                byte[] hostName = ArrayPool.GetBuffer();
+                byte[] hostName = StaticMemory.Buffer;
 
                 if (Native.enet_address_get_name(ref nativeAddress, hostName, (IntPtr)hostName.Length) == 0)
                     return Encoding.ASCII.GetString(hostName, 0, hostName.AnsiStrLen());
@@ -300,6 +292,15 @@ namespace ENet
             }
         }
 
+        public int Capacity
+        {
+            get
+            {
+                ThrowIfNotValid();
+                return unchecked((int)Native.enet_host_get_peers_capacity(nativeHost));
+            }
+        }
+
         public Peer this[int index]
         {
             get
@@ -358,38 +359,38 @@ namespace ENet
             }
         }
 
-        public ulong Uptime
+        public TimeSpan Uptime
         {
             get
             {
                 ThrowIfNotValid();
-                return Native.enet_time_get() - Native.enet_host_get_start_time(nativeHost);
+                return new TimeSpan((Native.enet_time_get() - Native.enet_host_get_start_time(nativeHost)) * 10000);
             }
         }
 
-        private void ThrowIfChannelLimitOutOfRange(byte channelLimit)
+        private void ThrowIfChannelLimitOutOfRange(ushort channelLimit)
         {
-            if (channelLimit < 0 || channelLimit > Protocol.maxChannelCount)
+            if (channelLimit < 1 || channelLimit > Runtime.MaxChannelCount)
                 throw new ArgumentOutOfRangeException("channelLimit");
         }
 
-        internal void ThrowIfNotValid()
+        private void ThrowIfNotValid()
         {
             if (!IsValid)
                 throw new InvalidOperationException("Host not created");
         }
 
-        public void Create(int peerLimit, byte channelLimit = 0, uint incomingBandwidth = 0, uint outgoingBandwidth = 0)
+        public void Create(int peerLimit, ushort channelLimit = 0, uint incomingBandwidth = 0, uint outgoingBandwidth = 0)
         {
             Create(null, peerLimit, channelLimit, incomingBandwidth, outgoingBandwidth);
         }
 
-        public void Create(Address? address = null, int peerLimit = 1, byte channelLimit = 0, uint incomingBandwidth = 0, uint outgoingBandwidth = 0)
+        public void Create(Address? address = null, int peerLimit = 1, ushort channelLimit = 0, uint incomingBandwidth = 0, uint outgoingBandwidth = 0)
         {
             if (nativeHost != IntPtr.Zero)
                 throw new InvalidOperationException("Host already created");
 
-            if (peerLimit < 0 || peerLimit > Protocol.maxPeers)
+            if (peerLimit < 1 || peerLimit > Runtime.MaxPeers)
                 throw new ArgumentOutOfRangeException("peerLimit");
 
             ThrowIfChannelLimitOutOfRange(channelLimit);
@@ -397,7 +398,6 @@ namespace ENet
             if (address != null)
             {
                 var nativeAddress = address.Value.nativeAddress;
-
                 nativeHost = Native.enet_host_create(ref nativeAddress, (IntPtr)peerLimit, channelLimit, incomingBandwidth, outgoingBandwidth);
             }
             else
@@ -406,7 +406,7 @@ namespace ENet
             }
 
             if (nativeHost == IntPtr.Zero)
-                throw new InvalidOperationException("Host creation call failed");
+                throw new OutOfMemoryException("Host creation failed");
         }
 
         public bool CompressionEnabled
@@ -454,6 +454,55 @@ namespace ENet
             }
         }
 
+        public ushort ChannelLimit
+        {
+            get
+            {
+                ThrowIfNotValid();
+                return Native.enet_host_get_channel_limit(nativeHost);
+            }
+
+            set
+            {
+                ThrowIfNotValid();
+                ThrowIfChannelLimitOutOfRange(value);
+                Native.enet_host_set_channel_limit(nativeHost, value);
+            }
+        }
+
+        public void SetBandwidthLimit(uint incomingBandwidth, uint outgoingBandwidth)
+        {
+            ThrowIfNotValid();
+
+            Native.enet_host_bandwidth_limit(nativeHost, incomingBandwidth, outgoingBandwidth);
+        }
+
+        public Peer Connect(Address address, ushort channelLimit = 0, uint status = 0)
+        {
+            ThrowIfNotValid();
+            ThrowIfChannelLimitOutOfRange(channelLimit);
+
+            var nativeAddress = address.nativeAddress;
+            var peer = new Peer(Native.enet_host_connect(nativeHost, ref nativeAddress, channelLimit, status));
+
+            if (peer.NativeData == IntPtr.Zero)
+                throw new InvalidOperationException("Host connect call failed");
+
+            return peer;
+        }
+
+        public void Disconnect(uint status = 0)
+        {
+            ThrowIfNotValid();
+            uint peerCount = Native.enet_host_get_peers_count(nativeHost);
+            for (uint i = 0; i < peerCount; ++i)
+            {
+                var nativePeer = Native.enet_host_get_peer(nativeHost, i);
+                Native.enet_peer_disconnect_immediately(nativePeer, status);
+                Peer.ReleaseUserData(nativePeer);
+            }
+        }
+
         public void Broadcast(byte channelId, ref Packet packet)
         {
             ThrowIfNotValid();
@@ -463,44 +512,7 @@ namespace ENet
             packet.NativeData = IntPtr.Zero;
         }
 
-        public int CheckEvents(out Event ev)
-        {
-            ThrowIfNotValid();
-
-            ENetEvent nativeEvent;
-            int result = Native.enet_host_check_events(nativeHost, out nativeEvent);
-            ev = (result <= 0) ? default(Event) : new Event(nativeEvent);
-
-            return result;
-        }
-
-        public Peer Connect(Address address, byte channelLimit = 0, uint data = 0)
-        {
-            ThrowIfNotValid();
-            ThrowIfChannelLimitOutOfRange(channelLimit);
-
-            var nativeAddress = address.nativeAddress;
-            var peer = new Peer(Native.enet_host_connect(nativeHost, ref nativeAddress, channelLimit, data));
-
-            if (peer.NativeData == IntPtr.Zero)
-                throw new InvalidOperationException("Host connect call failed");
-
-            return peer;
-        }
-
-        public void Disconnect(uint data = 0)
-        {
-            ThrowIfNotValid();
-            uint peerCount = Native.enet_host_get_peers_count(nativeHost);
-            for (uint i = 0; i < peerCount; ++i)
-            {
-                var nativePeer = Native.enet_host_get_peer(nativeHost, i);
-                Native.enet_peer_disconnect_immediately(nativePeer, data);
-                Peer.ReleaseUserData(nativePeer);
-            }
-        }
-
-        public int Service(out Event ev, int timeout = 0)
+        public int Update(out Event ev, int timeout = 0)
         {
             if (timeout < 0)
                 throw new ArgumentOutOfRangeException("timeout");
@@ -512,21 +524,6 @@ namespace ENet
             ev = (result <= 0) ? default(Event) : new Event(nativeEvent);
 
             return result;
-        }
-
-        public void SetBandwidthLimit(uint incomingBandwidth, uint outgoingBandwidth)
-        {
-            ThrowIfNotValid();
-
-            Native.enet_host_bandwidth_limit(nativeHost, incomingBandwidth, outgoingBandwidth);
-        }
-
-        public void SetChannelLimit(byte channelLimit)
-        {
-            ThrowIfNotValid();
-            ThrowIfChannelLimitOutOfRange(channelLimit);
-
-            Native.enet_host_channel_limit(nativeHost, channelLimit);
         }
 
         public void Flush()
@@ -584,9 +581,9 @@ namespace ENet
 
         }
 
-        internal IntPtr nativePeer;
-
         private uint nativeId;
+
+        internal IntPtr nativePeer;
 
         internal Peer(IntPtr peer)
         {
@@ -610,7 +607,7 @@ namespace ENet
             {
                 ThrowIfNotValid();
 
-                byte[] ip = ArrayPool.GetBuffer();
+                byte[] ip = StaticMemory.Buffer;
 
                 if (Native.enet_peer_get_ip(nativePeer, ip, (IntPtr)ip.Length) == 0)
                 {
@@ -632,7 +629,7 @@ namespace ENet
             {
                 ThrowIfNotValid();
 
-                byte[] name = ArrayPool.GetBuffer();
+                byte[] name = StaticMemory.Buffer;
 
                 if (Native.enet_peer_get_name(nativePeer, name, (IntPtr)name.Length) == 0)
                     return Encoding.ASCII.GetString(name, 0, name.AnsiStrLen());
@@ -663,6 +660,15 @@ namespace ENet
         public PeerState State
         {
             get { return nativePeer == IntPtr.Zero ? PeerState.Uninitialized : Native.enet_peer_get_state(nativePeer); }
+        }
+
+        public ushort ChannelCount
+        {
+            get
+            {
+                ThrowIfNotValid();
+                return Native.enet_peer_get_channel_count(nativePeer);
+            }
         }
 
         public uint RoundTripTime
@@ -755,23 +761,22 @@ namespace ENet
             }
         }
 
-        internal void ThrowIfNotValid()
-        {
-            if (nativePeer == IntPtr.Zero)
-                throw new InvalidOperationException("Peer not created");
-        }
-
         public void ConfigureThrottle(uint interval, uint acceleration, uint deceleration)
         {
             ThrowIfNotValid();
             Native.enet_peer_throttle_configure(nativePeer, interval, acceleration, deceleration);
         }
 
-        public bool Send(byte channelID, ref Packet packet)
+        public int Send(byte channelId, ref Packet packet)
         {
             ThrowIfNotValid();
             packet.ThrowIfNotValid();
-            return Native.enet_peer_send(nativePeer, channelID, packet.NativeData) == 0;
+
+            ushort channelCount = Native.enet_peer_get_channel_count(nativePeer);
+            if (channelId >= channelCount)
+                throw new ArgumentOutOfRangeException("channelId");
+
+            return Native.enet_peer_send(nativePeer, channelId, packet.NativeData);
         }
 
         public void Ping()
@@ -801,22 +806,22 @@ namespace ENet
             Native.enet_peer_timeout(nativePeer, timeoutLimit, timeoutMinimum, timeoutMaximum);
         }
 
-        public void Disconnect(uint data = 0)
+        public void Disconnect(uint status = 0)
         {
             ThrowIfNotValid();
-            Native.enet_peer_disconnect(nativePeer, data);
+            Native.enet_peer_disconnect(nativePeer, status);
         }
 
-        public void DisconnectImmediately(uint data = 0)
+        public void DisconnectImmediately(uint status = 0)
         {
             ThrowIfNotValid();
-            Native.enet_peer_disconnect_immediately(nativePeer, data);
+            Native.enet_peer_disconnect_immediately(nativePeer, status);
         }
 
-        public void DisconnectWhenReady(uint data = 0)
+        public void DisconnectWhenReady(uint status = 0)
         {
             ThrowIfNotValid();
-            Native.enet_peer_disconnect_when_ready(nativePeer, data);
+            Native.enet_peer_disconnect_when_ready(nativePeer, status);
         }
 
         public void Reset()
@@ -824,9 +829,15 @@ namespace ENet
             ThrowIfNotValid();
             Native.enet_peer_reset(nativePeer);
         }
+
+        private void ThrowIfNotValid()
+        {
+            if (nativePeer == IntPtr.Zero)
+                throw new InvalidOperationException("Peer not created");
+        }
     }
 
-    public static class Protocol
+    public static class Runtime
     {
         public const ushort MaxChannelCount = 256;
         public const ushort MaxPeers = 4096;
@@ -924,7 +935,10 @@ namespace ENet
         internal static extern int enet_host_check_events(IntPtr host, out ENetEvent ev);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern void enet_host_channel_limit(IntPtr host, byte channelLimit);
+        internal static extern void enet_host_set_channel_limit(IntPtr host, ushort channelLimit);
+
+        [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ushort enet_host_get_channel_limit(IntPtr host);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
         internal static extern void enet_host_bandwidth_limit(IntPtr host, uint incomingBandwidth, uint outgoingBandwidth);
@@ -934,6 +948,9 @@ namespace ENet
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
         internal static extern uint enet_host_get_peers_count(IntPtr host);
+
+        [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern uint enet_host_get_peers_capacity(IntPtr host);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
         internal static extern ulong enet_host_get_packets_sent(IntPtr host);
@@ -1023,6 +1040,9 @@ namespace ENet
         internal static extern void enet_peer_set_userdata(IntPtr peer, IntPtr data);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ushort enet_peer_get_channel_count(IntPtr peer);
+        
+        [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
         internal static extern int enet_peer_send(IntPtr peer, byte channelId, IntPtr packet);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
@@ -1038,13 +1058,13 @@ namespace ENet
         internal static extern void enet_peer_timeout(IntPtr peer, uint timeoutLimit, uint timeoutMinimum, uint timeoutMaximum);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern void enet_peer_disconnect(IntPtr peer, uint data);
+        internal static extern void enet_peer_disconnect(IntPtr peer, uint status);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern void enet_peer_disconnect_immediately(IntPtr peer, uint data);
+        internal static extern void enet_peer_disconnect_immediately(IntPtr peer, uint status);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern void enet_peer_disconnect_when_ready(IntPtr peer, uint data);
+        internal static extern void enet_peer_disconnect_when_ready(IntPtr peer, uint status);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
         internal static extern void enet_peer_reset(IntPtr peer);
@@ -1064,3 +1084,4 @@ namespace ENet
         }
     }
 }
+
