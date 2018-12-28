@@ -510,6 +510,17 @@ typedef union _ENetProtocol
  * General ENet structs/enums
  **************************************************************************/
 
+#define ENET_ERROR_NONE                                   0
+#define ENET_ERROR                                       -1
+#define ENET_ERROR_INVALID_OPERATION                     -2
+#define ENET_ERROR_INVALID_ARGUMENTS                     -3
+#define ENET_ERROR_OUT_OF_MEMORY                         -4
+
+#define ENET_ERROR_RECEIVING_INCOMING_PACKETS           -10
+#define ENET_ERROR_DISPATCHING_INCOMING_PACKETS         -11
+#define ENET_ERROR_SENDING_OUTGOING_COMMANDS            -12
+#define ENET_ERROR_SOCKET_WAIT_FAILED                   -13
+
 typedef enum _ENetSocketType 
 {
     ENET_SOCKET_TYPE_NONE = 0,
@@ -753,48 +764,48 @@ typedef struct _ENetPeer
 
 typedef enet_uint32 (ENET_CALLBACK* ENetChecksumCallback) (const ENetBuffer* buffers, size_t bufferCount);
 
-typedef int (ENET_CALLBACK* ENetInterceptCallback) (struct _ENetHost* host, struct _ENetEvent* event);
+typedef int (ENET_CALLBACK* ENetHostInterceptCallback) (struct _ENetHost* host, struct _ENetEvent* event);
 
 typedef struct _ENetHost 
 {
-    ENetSocket            socket;
-    ENetAddress           address;
-    enet_uint32           incomingBandwidth;            // downstream bandwidth of the host
-    enet_uint32           outgoingBandwidth;            // upstream bandwidth of the host
-    enet_uint32           bandwidthThrottleEpoch;
-    enet_uint16           mtu;
-    enet_uint32           randomSeed;
-    int                   recalculateBandwidthLimits;
-    enet_uint8            refuseConnections;
-    ENetPeer*             peers;                        // array of peers allocated for this host
-    size_t                peerCount;                    // number of peers allocated for this host
-    enet_uint16           channelLimit;                 // maximum number of channels allowed for connected peers
-    enet_uint32           serviceTime;
-    enet_uint64           startTime;                    // time this host was created can be used to obtain the uptime by means of (enet_time() - start_time)
-    ENetList              dispatchQueue;
-    int                   continueSending;
-    size_t                packetSize;
-    enet_uint8            headerFlags;
-    enet_uint64           totalSentData;                // total data sent
-    enet_uint64           totalSentPackets;             // total UDP packets received
-    enet_uint64           totalReceivedData;            // total data received
-    enet_uint64           totalReceivedPackets;         // total UDP packets sent
-    ENetProtocol          commands[ENET_PROTOCOL_MAXIMUM_PACKET_COMMANDS];
-    size_t                commandCount;
-    ENetBuffer            buffers[ENET_BUFFER_MAXIMUM];
-    size_t                bufferCount;
-    enet_uint8            compressionEnabled;           // if true will output packets compressed (incoming packets are always handled according to the COMP flag regardless of this setting)
-    enet_uint8            crcEnabled;                   // if true will output packets with crc (incoming packets are always handled according to the CRC flag regardless of this setting)
-    enet_uint8            packetData[2][ENET_HOST_PACKET_DATA_LENGTH_MAX];
-    ENetAddress           receivedAddress;
-    enet_uint8*           receivedData;
-    enet_uint32           receivedDataLength;
-    ENetInterceptCallback interceptCallback;            // callback the user can set to intercept received raw UDP packets
-    enet_uint32           connectedPeers;
-    size_t                bandwidthLimitedPeers;
-    enet_uint16           duplicatePeers;               // optional number of allowed peers from duplicate IPs, defaults to ENET_PROTOCOL_MAXIMUM_PEER_COUNT
-    enet_uint32           maximumPacketSize;            // the maximum allowable packet size that may be sent or received on a peer
-    size_t                maximumWaitingData;           // the maximum aggregate amount of buffer space a peer may use waiting for packets to be delivered
+    ENetSocket                  socket;
+    ENetAddress                 address;
+    enet_uint32                 incomingBandwidth;            // downstream bandwidth of the host
+    enet_uint32                 outgoingBandwidth;            // upstream bandwidth of the host
+    enet_uint32                 bandwidthThrottleEpoch;
+    enet_uint16                 mtu;
+    enet_uint32                 randomSeed;
+    int                         recalculateBandwidthLimits;
+    enet_uint8                  refuseConnections;
+    ENetPeer*                   peers;                        // array of peers allocated for this host
+    size_t                      peerCount;                    // number of peers allocated for this host
+    enet_uint16                 channelLimit;                 // maximum number of channels allowed for connected peers
+    enet_uint32                 serviceTime;
+    enet_uint64                 startTime;                    // time this host was created can be used to obtain the uptime by means of (enet_time() - start_time)
+    ENetList                    dispatchQueue;
+    int                         continueSending;
+    size_t                      packetSize;
+    enet_uint8                  headerFlags;
+    enet_uint64                 totalSentData;                // total data sent
+    enet_uint64                 totalSentPackets;             // total UDP packets received
+    enet_uint64                 totalReceivedData;            // total data received
+    enet_uint64                 totalReceivedPackets;         // total UDP packets sent
+    ENetProtocol                commands[ENET_PROTOCOL_MAXIMUM_PACKET_COMMANDS];
+    size_t                      commandCount;
+    ENetBuffer                  buffers[ENET_BUFFER_MAXIMUM];
+    size_t                      bufferCount;
+    enet_uint8                  compressionEnabled;           // if true will output packets compressed (incoming packets are always handled according to the COMP flag regardless of this setting)
+    enet_uint8                  crcEnabled;                   // if true will output packets with crc (incoming packets are always handled according to the CRC flag regardless of this setting)
+    enet_uint8                  packetData[2][ENET_HOST_PACKET_DATA_LENGTH_MAX];
+    ENetAddress                 receivedAddress;
+    enet_uint8*                 receivedData;
+    enet_uint32                 receivedDataLength;
+    ENetHostInterceptCallback   interceptCallback;            // callback the user can set to intercept received raw UDP packets
+    enet_uint32                 connectedPeers;
+    size_t                      bandwidthLimitedPeers;
+    enet_uint16                 duplicatePeers;               // optional number of allowed peers from duplicate IPs, defaults to ENET_PROTOCOL_MAXIMUM_PEER_COUNT
+    enet_uint32                 maximumPacketSize;            // the maximum allowable packet size that may be sent or received on a peer
+    size_t                      maximumWaitingData;           // the maximum aggregate amount of buffer space a peer may use waiting for packets to be delivered
 } ENetHost;
 
 
@@ -849,6 +860,8 @@ ENET_API enet_uint8            enet_host_get_refuse_connections(ENetHost* host);
 ENET_API void                  enet_host_set_channel_limit(ENetHost* host, enet_uint16 channelLimit);
 ENET_API enet_uint16           enet_host_get_channel_limit(ENetHost* host);
 
+ENET_API enet_uint64           enet_host_get_start_time(ENetHost* host);
+
 ENET_API ENetPeer*             enet_host_connect(ENetHost* host, const ENetAddress* address, enet_uint16 channelCount, enet_uint32 status);
 ENET_API int                   enet_host_check_events(ENetHost* host, ENetEvent* event);
 ENET_API int                   enet_host_service(ENetHost* host, ENetEvent* event, enet_uint32 timeout);
@@ -893,6 +906,8 @@ ENET_API void*                 enet_packet_get_data(ENetPacket* packet);
 ENET_API int                   enet_packet_get_length(ENetPacket* packet);
 ENET_API void                  enet_packet_set_free_callback(ENetPacket* packet, const void* callback);
 ENET_API void                  enet_packet_dispose(ENetPacket* packet);
+
+ENET_API void                  enet_host_set_intercept_callback(ENetHost* host, const void* callback);
 
 ENET_API ENetPeer*             enet_host_get_peer(ENetHost* host, enet_uint32 index);
 ENET_API enet_uint32           enet_host_get_peers_count(ENetHost* host);

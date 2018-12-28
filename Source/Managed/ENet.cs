@@ -65,6 +65,19 @@ namespace ENet
         Zombie = 9
     }
 
+    internal enum ErrorCode
+    {
+        None = 0,
+        Unspecified = -1,
+        InvalidOperation = -2,
+        InvalidArguments = -3,
+        OutOfMemory = -4,
+        ReceiveIncomingPacketsFailed = -10,
+        DispatchIncomingPacketsFailed = -11,
+        SendOutgoingCommandsFailed = -12,
+        SocketWaitFailed = -13
+    }
+
     [StructLayout(LayoutKind.Sequential)]
     internal struct ENetAddress
     {
@@ -95,8 +108,6 @@ namespace ENet
     public delegate IntPtr AllocCallback(IntPtr size);
     public delegate void FreeCallback(IntPtr memory);
     public delegate void OutOfMemoryCallback();
-    public delegate void PacketFreeCallback(Packet packet);
-    public delegate void HostInterceptCallback(ENetEvent packet);
 
     internal static class StaticMemory
     {
@@ -106,7 +117,7 @@ namespace ENet
 
     public struct Address
     {
-        public Address(ENetAddress address)
+        internal Address(ENetAddress address)
         {
             nativeAddress = address;
         }
@@ -131,15 +142,15 @@ namespace ENet
                     throw new ArgumentNullException("value");
 
                 if (Native.enet_address_set_name(ref nativeAddress, Encoding.ASCII.GetBytes(value)) != 0)
-                    throw new ArgumentException("value"); 
+                    throw new ArgumentException("Name cannot be resolved", "value"); 
             }
         }
 
         public ushort Port
         {
-            get { return nativeAddress.port; }
+            get { return nativeAddress.Port; }
 
-            set { nativeAddress.port = value; }
+            set { nativeAddress.Port = value; }
         }
     }
 
@@ -154,27 +165,27 @@ namespace ENet
 
         public EventType Type
         {
-            get { return nativeEvent.type; }
+            get { return nativeEvent.Type; }
         }
 
         public Peer Peer
         {
-            get { return new Peer(nativeEvent.peer); }
+            get { return new Peer(nativeEvent.Peer); }
         }
 
         public byte ChannelId
         {
-            get { return nativeEvent.channelId; }
+            get { return nativeEvent.ChannelId; }
         }
 
-        public uint Data
+        public uint Status
         {
-            get { return nativeEvent.data; }
+            get { return nativeEvent.Status; }
         }
 
         public Packet Packet
         {
-            get { return new Packet(nativeEvent.packet); }
+            get { return new Packet(nativeEvent.Packet); }
         }
     }
 
@@ -216,13 +227,7 @@ namespace ENet
         internal void ThrowIfNotValid()
         {
             if (!IsValid)
-                throw new InvalidOperationException("Packet not created");
-        }
-
-        public void SetFreeCallback(PacketFreeCallback callback)
-        {
-            ThrowIfNotValid();
-            Native.enet_packet_set_free_callback(nativePacket, Marshal.GetFunctionPointerForDelegate(callback));
+                throw new InvalidOperationException("Packet is not valid");
         }
 
         public void Create(byte[] data, PacketFlags flags)
@@ -241,23 +246,15 @@ namespace ENet
             nativePacket = Native.enet_packet_create(data, (IntPtr)length, flags);
         }
 
-        public void Create(IntPtr data, int length, PacketFlags flags = PacketFlags.None)
-        {
-            if (data == IntPtr.Zero)
-                throw new ArgumentNullException("data");
-
-            if (length < 0)
-                throw new ArgumentOutOfRangeException();
-
-            nativePacket = Native.enet_packet_create(data, (IntPtr)length, flags);
-        }
-
         public void CopyTo(byte[] destination)
         {
             if (destination == null)
                 throw new ArgumentNullException("destination");
 
-            Marshal.Copy(Data, destination, 0, Length);
+            ThrowIfNotValid();
+
+            IntPtr nativeData = Native.enet_packet_get_data(nativePacket);
+            Marshal.Copy(nativeData, destination, 0, Length);
         }
 
         #region IDisposable
@@ -364,7 +361,7 @@ namespace ENet
             get
             {
                 ThrowIfNotValid();
-                return new TimeSpan((Native.enet_time_get() - Native.enet_host_get_start_time(nativeHost)) * 10000);
+                return TimeSpan.FromMilliseconds(Native.enet_time() - Native.enet_host_get_start_time(nativeHost));
             }
         }
 
@@ -377,7 +374,7 @@ namespace ENet
         private void ThrowIfNotValid()
         {
             if (!IsValid)
-                throw new InvalidOperationException("Host not created");
+                throw new InvalidOperationException("Host is not valid");
         }
 
         public void Create(int peerLimit, ushort channelLimit = 0, uint incomingBandwidth = 0, uint outgoingBandwidth = 0)
@@ -485,7 +482,7 @@ namespace ENet
             var nativeAddress = address.nativeAddress;
             var peer = new Peer(Native.enet_host_connect(nativeHost, ref nativeAddress, channelLimit, status));
 
-            if (peer.NativeData == IntPtr.Zero)
+            if (peer.nativePeer == IntPtr.Zero)
                 throw new InvalidOperationException("Host connect call failed");
 
             return peer;
@@ -508,11 +505,10 @@ namespace ENet
             ThrowIfNotValid();
             packet.ThrowIfNotValid();
 
-            Native.enet_host_broadcast(nativeHost, channelId, packet.NativeData);
-            packet.NativeData = IntPtr.Zero;
+            Native.enet_host_broadcast(nativeHost, channelId, packet.nativePacket);
         }
 
-        public int Update(out Event ev, int timeout = 0)
+        public void Update(out Event newEvent, int timeout = 0)
         {
             if (timeout < 0)
                 throw new ArgumentOutOfRangeException("timeout");
@@ -520,23 +516,15 @@ namespace ENet
             ThrowIfNotValid();
 
             ENetEvent nativeEvent;
-            int result = Native.enet_host_service(nativeHost, out nativeEvent, (uint)timeout);
-            ev = (result <= 0) ? default(Event) : new Event(nativeEvent);
-
-            return result;
+            int errcode = Native.enet_host_service(nativeHost, out nativeEvent, (uint)timeout);
+            Native.ThrowIfError(errcode);
+            newEvent = new Event(nativeEvent);
         }
 
         public void Flush()
         {
             ThrowIfNotValid();
-
             Native.enet_host_flush(nativeHost);
-        }
-
-        public void SetInterceptCallback(HostInterceptCallback callback)
-        {
-            ThrowIfNotValid();
-            Native.enet_host_set_intercept_callback(nativeHost, Marshal.GetFunctionPointerForDelegate(callback));
         }
 
         #region IDisposable
@@ -707,7 +695,7 @@ namespace ENet
             }
         }
 
-        public uint PacketsLost
+        public ulong PacketsLost
         {
             get
             {
@@ -743,7 +731,6 @@ namespace ENet
             get
             {
                 ThrowIfNotValid();
-
                 IntPtr ptr = Native.enet_peer_get_userdata(nativePeer);
                 return ptr == IntPtr.Zero ? null : GCHandle.FromIntPtr(ptr).Target;
             }
@@ -756,7 +743,7 @@ namespace ENet
                 if (value != null)
                 {
                     var handle = GCHandle.Alloc(value, GCHandleType.Normal);
-                    Native.enet_peer_set_userdata(nativePeer, GChandle.ToIntPtr(handle));
+                    Native.enet_peer_set_userdata(nativePeer, GCHandle.ToIntPtr(handle));
                 }
             }
         }
@@ -767,7 +754,7 @@ namespace ENet
             Native.enet_peer_throttle_configure(nativePeer, interval, acceleration, deceleration);
         }
 
-        public int Send(byte channelId, ref Packet packet)
+        public void Send(byte channelId, ref Packet packet)
         {
             ThrowIfNotValid();
             packet.ThrowIfNotValid();
@@ -776,7 +763,8 @@ namespace ENet
             if (channelId >= channelCount)
                 throw new ArgumentOutOfRangeException("channelId");
 
-            return Native.enet_peer_send(nativePeer, channelId, packet.NativeData);
+            int errcode = Native.enet_peer_send(nativePeer, channelId, packet.nativePacket);
+            Native.ThrowIfError(errcode);
         }
 
         public void Ping()
@@ -790,13 +778,13 @@ namespace ENet
             get
             {
                 ThrowIfNotValid();
-                Native.enet_peer_set_ping_interval(nativePeer, interval);
+                return Native.enet_peer_get_ping_interval(nativePeer);
             }
 
             set
             {
                 ThrowIfNotValid();
-                return Native.enet_peer_get_ping_interval(nativePeer);
+                Native.enet_peer_set_ping_interval(nativePeer, value);
             }
         }
 
@@ -833,7 +821,7 @@ namespace ENet
         private void ThrowIfNotValid()
         {
             if (nativePeer == IntPtr.Zero)
-                throw new InvalidOperationException("Peer not created");
+                throw new InvalidOperationException("Peer is not valid");
         }
     }
 
@@ -857,10 +845,10 @@ namespace ENet
 
         public static bool Initialize(Callbacks callbacks)
         {
-            return Native.enet_initialize_with_callbacks(version, ref callbacks.nativeCallbacks) == 0;
+            return Native.enet_initialize_with_callbacks(ref callbacks.nativeCallbacks) == 0;
         }
 
-        public static void Finalize()
+        public static void Shutdown()
         {
             Native.enet_finalize();
         }
@@ -874,23 +862,51 @@ namespace ENet
     [SuppressUnmanagedCodeSecurity]
     internal static class Native
     {
-        #if __IOS__ || UNITY_IOS && !UNITY_EDITOR
+        #if __IOS__ || (UNITY_IOS && !UNITY_EDITOR)
             private const string nativeLibrary = "__Internal";
         #else
             private const string nativeLibrary = "libenet";
-        #endif
+#endif
+
+        internal static void ThrowIfError(int errcode)
+        {
+            if (errcode > 0)
+                return;
+
+            switch ((ErrorCode)errcode)
+            {
+                case ErrorCode.None:
+                    break;
+                case ErrorCode.InvalidOperation:
+                    throw new InvalidOperationException();
+                case ErrorCode.InvalidArguments:
+                    throw new ArgumentException("One or more specified arguments are invalid.");
+                case ErrorCode.OutOfMemory:
+                    throw new OutOfMemoryException();
+                case ErrorCode.ReceiveIncomingPacketsFailed:
+                    throw new ENetReceiveIncomingPacketsException();
+                case ErrorCode.DispatchIncomingPacketsFailed:
+                    throw new ENetDispatchIncomingPacketsException();
+                case ErrorCode.SendOutgoingCommandsFailed:
+                    throw new ENetSendOutgoingCommandsException();
+                case ErrorCode.SocketWaitFailed:
+                    throw new ENetSocketWaitException();
+                default:
+                    throw new ENetException();
+            }
+        }
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
         internal static extern int enet_initialize();
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern int enet_initialize_with_callbacks(uint version, ref ENetCallbacks callbacks);
+        internal static extern int enet_initialize_with_callbacks(ref ENetCallbacks callbacks);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
         internal static extern void enet_finalize();
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern ulong enet_time_get();
+        internal static extern ulong enet_time();
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
         internal static extern int enet_address_set_name(ref ENetAddress address, byte[] hostName);
@@ -911,22 +927,19 @@ namespace ENet
         internal static extern int enet_packet_get_length(IntPtr packet);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern void enet_packet_set_free_callback(IntPtr packet, IntPtr callback);
-
-        [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
         internal static extern void enet_packet_dispose(IntPtr packet);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern IntPtr enet_host_create(ref ENetAddress address, IntPtr peerLimit, byte channelLimit, uint incomingBandwidth, uint outgoingBandwidth);
+        internal static extern IntPtr enet_host_create(ref ENetAddress address, IntPtr peerLimit, ushort channelLimit, uint incomingBandwidth, uint outgoingBandwidth);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern IntPtr enet_host_create(IntPtr address, IntPtr peerLimit, byte channelLimit, uint incomingBandwidth, uint outgoingBandwidth);
+        internal static extern IntPtr enet_host_create(IntPtr address, IntPtr peerLimit, ushort channelLimit, uint incomingBandwidth, uint outgoingBandwidth);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern IntPtr enet_host_connect(IntPtr host, ref ENetAddress address, byte channelCount, uint data);
+        internal static extern IntPtr enet_host_connect(IntPtr host, ref ENetAddress address, ushort channelCount, uint data);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern void enet_host_broadcast(IntPtr host, byte channelID, IntPtr packet);
+        internal static extern void enet_host_broadcast(IntPtr host, byte channelId, IntPtr packet);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
         internal static extern int enet_host_service(IntPtr host, out ENetEvent ev, uint timeout);
@@ -939,6 +952,9 @@ namespace ENet
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
         internal static extern ushort enet_host_get_channel_limit(IntPtr host);
+
+        [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong enet_host_get_start_time(IntPtr host);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
         internal static extern void enet_host_bandwidth_limit(IntPtr host, uint incomingBandwidth, uint outgoingBandwidth);
@@ -987,9 +1003,6 @@ namespace ENet
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
         internal static extern byte enet_host_get_refuse_connections(IntPtr host);
-
-        [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern void enet_host_set_intercept_callback(IntPtr host, IntPtr callback);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
         internal static extern void enet_peer_throttle_configure(IntPtr peer, uint interval, uint acceleration, uint deceleration);
@@ -1083,5 +1096,65 @@ namespace ENet
             return i;
         }
     }
+
+
+    #region Exceptions
+
+    [Serializable()]
+    public class ENetException: Exception
+    {
+        public ENetException() : base() { }
+        public ENetException(string message) : base(message) { }
+        public ENetException(string message, System.Exception inner) : base(message, inner) { }
+
+        // A constructor is needed for serialization when an exception propagates from a .NET remoting server to a client. 
+        protected ENetException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) : base(info, context) { }
+    }
+
+    [Serializable()]
+    public class ENetReceiveIncomingPacketsException: ENetException
+    {
+        public ENetReceiveIncomingPacketsException() : base() { }
+        public ENetReceiveIncomingPacketsException(string message) : base(message) { }
+        public ENetReceiveIncomingPacketsException(string message, System.Exception inner) : base(message, inner) { }
+
+        // A constructor is needed for serialization when an exception propagates from a .NET remoting server to a client. 
+        protected ENetReceiveIncomingPacketsException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) : base(info, context) { }
+    }
+
+    [Serializable()]
+    public class ENetDispatchIncomingPacketsException: ENetException
+    {
+        public ENetDispatchIncomingPacketsException() : base() { }
+        public ENetDispatchIncomingPacketsException(string message) : base(message) { }
+        public ENetDispatchIncomingPacketsException(string message, System.Exception inner) : base(message, inner) { }
+
+        // A constructor is needed for serialization when an exception propagates from a .NET remoting server to a client. 
+        protected ENetDispatchIncomingPacketsException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) : base(info, context) { }
+    }
+
+    [Serializable()]
+    public class ENetSendOutgoingCommandsException: ENetException
+    {
+        public ENetSendOutgoingCommandsException() : base() { }
+        public ENetSendOutgoingCommandsException(string message) : base(message) { }
+        public ENetSendOutgoingCommandsException(string message, System.Exception inner) : base(message, inner) { }
+
+        // A constructor is needed for serialization when an exception propagates from a .NET remoting server to a client. 
+        protected ENetSendOutgoingCommandsException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) : base(info, context) { }
+    }
+
+    [Serializable()]
+    public class ENetSocketWaitException: ENetException
+    {
+        public ENetSocketWaitException() : base() { }
+        public ENetSocketWaitException(string message) : base(message) { }
+        public ENetSocketWaitException(string message, System.Exception inner) : base(message, inner) { }
+
+        // A constructor is needed for serialization when an exception propagates from a .NET remoting server to a client. 
+        protected ENetSocketWaitException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) : base(info, context) { }
+    }
+
+    #endregion
 }
 

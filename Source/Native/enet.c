@@ -1590,14 +1590,12 @@ static int enet_protocol_receive_incoming_commands(ENetHost* host, ENetEvent* ev
 		buffer.dataLength = host->mtu;
 
 		int receivedLength = enet_socket_receive(host->socket, &host->receivedAddress, &buffer, 1);
-		if (receivedLength == -2)
-			continue;
+
+        if (receivedLength == 0)
+            return 0;
 
 		if (receivedLength < 0)
-			return -1;
-
-		if (receivedLength == 0)
-			return 0;
+			return ENET_ERROR_RECEIVING_INCOMING_PACKETS;
 
 		host->receivedData = host->packetData[0];
 		host->receivedDataLength = receivedLength;
@@ -1605,30 +1603,22 @@ static int enet_protocol_receive_incoming_commands(ENetHost* host, ENetEvent* ev
 		host->totalReceivedData += receivedLength;
 		host->totalReceivedPackets++;
 
+        int errcode;
 		if (host->interceptCallback != NULL) 
 		{
-			switch (host->interceptCallback(host, event)) 
-			{
-			case 1:
-				if (event != NULL && event->type != ENET_EVENT_TYPE_NONE)
-					return 1;
-				else
-					continue;
-
-			case -1: return -1;
-			default: break;
-			}
+            errcode = host->interceptCallback(host, event);
+            if (errcode > 0 && event != NULL && event->type != ENET_EVENT_TYPE_NONE)
+                return errcode;
+            else if (errcode < 0)
+                return ENET_ERROR_RECEIVING_INCOMING_PACKETS;
 		}
 
-		switch (enet_protocol_handle_incoming_commands(host, event)) 
-		{
-		case 1: return 1;
-		case -1: return -1;
-		default: break;
-		}
+        errcode = enet_protocol_handle_incoming_commands(host, event);
+        if (errcode != 0)
+            return errcode;
 	}
 
-	return -1;
+	return ENET_ERROR_RECEIVING_INCOMING_PACKETS;
 }
 
 
@@ -2107,7 +2097,7 @@ static int enet_protocol_send_outgoing_commands(ENetHost* host, ENetEvent* event
 			enet_protocol_remove_sent_unreliable_commands(currentPeer);
 
 			if (sentLength < 0) {
-				return -1;
+				return ENET_ERROR_SENDING_OUTGOING_COMMANDS;
 			}
 
 			host->totalSentData += sentLength;
@@ -2141,26 +2131,17 @@ int enet_host_check_events(ENetHost* host, ENetEvent* event)
 
 int enet_host_service(ENetHost* host, ENetEvent* event, enet_uint32 timeout) 
 {
+    int errcode;
+
 	if (event != NULL) 
 	{
 		event->type = ENET_EVENT_TYPE_NONE;
 		event->peer = NULL;
 		event->packet = NULL;
 
-		switch (enet_protocol_dispatch_incoming_commands(host, event)) 
-		{
-		case 1: 
-			return 1;
-
-		case -1:
-#ifdef ENET_DEBUG
-			perror("Error dispatching incoming packets");
-#endif
-			return -1;
-
-		default: 
-			break;
-		}
+        errcode = enet_protocol_dispatch_incoming_commands(host, event);
+        if (errcode != 0)
+            return errcode;
 	}
 
 	host->serviceTime = (enet_uint32)enet_time();
@@ -2173,67 +2154,23 @@ int enet_host_service(ENetHost* host, ENetEvent* event, enet_uint32 timeout)
 		if (ENET_TIME_DIFFERENCE(host->serviceTime, host->bandwidthThrottleEpoch) >= ENET_HOST_BANDWIDTH_THROTTLE_INTERVAL)
 			enet_host_bandwidth_throttle(host);
 
-		switch (enet_protocol_send_outgoing_commands(host, event, 1)) 
-		{
-		case 1:
-			return 1;
+        errcode = enet_protocol_send_outgoing_commands(host, event, 1);
+        if (errcode != 0)
+            return errcode;
 
-		case -1:
-#ifdef ENET_DEBUG
-			perror("Error sending outgoing packets");
-#endif
-			return -1;
+        errcode = enet_protocol_receive_incoming_commands(host, event);
+        if (errcode != 0)
+            return errcode;
 
-		default:
-			break;
-		}
-
-		switch (enet_protocol_receive_incoming_commands(host, event)) 
-		{
-		case 1:
-			return 1;
-
-		case -1:
-#ifdef ENET_DEBUG
-			perror("Error receiving incoming packets");
-#endif
-			return -1;
-
-		default:
-			break;
-		}
-
-		switch (enet_protocol_send_outgoing_commands(host, event, 1)) 
-		{
-		case 1:
-			return 1;
-
-		case -1:
-#ifdef ENET_DEBUG
-			perror("Error sending outgoing packets");
-#endif
-			return -1;
-
-		default:
-			break;
-		}
+        errcode = enet_protocol_send_outgoing_commands(host, event, 1);
+        if (errcode != 0)
+            return errcode;
 
 		if (event != NULL) 
 		{
-			switch (enet_protocol_dispatch_incoming_commands(host, event)) 
-			{
-			case 1:
-				return 1;
-
-			case -1:
-#ifdef ENET_DEBUG
-				perror("Error dispatching incoming packets");
-#endif
-				return -1;
-
-			default:
-				break;
-			}
+            errcode = enet_protocol_dispatch_incoming_commands(host, event);
+            if (errcode != 0)
+                return errcode;
 		}
 
 		if (ENET_TIME_GREATER_EQUAL(host->serviceTime, timeout))
@@ -2249,7 +2186,7 @@ int enet_host_service(ENetHost* host, ENetEvent* event, enet_uint32 timeout)
 			waitCondition = ENET_SOCKET_WAIT_RECEIVE | ENET_SOCKET_WAIT_INTERRUPT;
 
 			if (enet_socket_wait(host->socket, &waitCondition, ENET_TIME_DIFFERENCE(timeout, host->serviceTime)) != 0)
-				return -1;
+				return ENET_ERROR_SOCKET_WAIT_FAILED;
 
 		} 
 		while (waitCondition & ENET_SOCKET_WAIT_INTERRUPT);
@@ -2313,9 +2250,11 @@ int enet_peer_throttle(ENetPeer* peer, enet_uint32 rtt)
 
 int enet_peer_send(ENetPeer* peer, enet_uint8 channelId, ENetPacket* packet) 
 {
-	if (peer->state != ENET_PEER_STATE_CONNECTED || channelId >= peer->channelCount || packet->dataLength > peer->host->maximumPacketSize) {
-		return -1;
-	}
+    if (peer->state != ENET_PEER_STATE_CONNECTED)
+        return ENET_ERROR_INVALID_OPERATION;
+
+    if (channelId >= peer->channelCount || packet->dataLength > peer->host->maximumPacketSize)
+		return ENET_ERROR_INVALID_ARGUMENTS;
 
 	ENetChannel* channel = &peer->channels[channelId];
 	enet_uint16 fragmentLength = peer->mtu - sizeof(ENetProtocolHeader) - sizeof(ENetProtocolSendFragment);
@@ -2327,7 +2266,7 @@ int enet_peer_send(ENetPeer* peer, enet_uint8 channelId, ENetPacket* packet)
 	{
 		size_t calculatedFragmentCount = (packet->dataLength + fragmentLength - 1) / fragmentLength;
 		if (calculatedFragmentCount > ENET_PROTOCOL_MAXIMUM_FRAGMENT_COUNT)
-			return -1;
+			return ENET_ERROR_INVALID_ARGUMENTS;
 
         enet_uint16 fragmentCount = (enet_uint16)calculatedFragmentCount;
 		enet_uint8 commandNumber;
@@ -2363,7 +2302,7 @@ int enet_peer_send(ENetPeer* peer, enet_uint8 channelId, ENetPacket* packet)
 					enet_free(fragment);
 				}
 
-				return -1;
+				return ENET_ERROR_OUT_OF_MEMORY;
 			}
 
 			fragment->fragmentOffset = fragmentOffset;
@@ -2413,7 +2352,7 @@ int enet_peer_send(ENetPeer* peer, enet_uint8 channelId, ENetPacket* packet)
         }
 
         if (enet_peer_queue_outgoing_command(peer, &command, packet, 0, (enet_uint16)packet->dataLength) == NULL)
-            return -1;
+            return ENET_ERROR_OUT_OF_MEMORY;
 
     }
 
@@ -3126,7 +3065,7 @@ ENetHost* enet_host_create(const ENetAddress* localAddress, size_t peerCount, en
         peerCount = 1;
 
     if (peerCount > ENET_PROTOCOL_MAXIMUM_PEER_COUNT)
-        peerCount ENET_PROTOCOL_MAXIMUM_PEER_COUNT;
+        peerCount = ENET_PROTOCOL_MAXIMUM_PEER_COUNT;
 
 	ENetHost* host = (ENetHost*)enet_malloc(sizeof(ENetHost));
 
@@ -3378,9 +3317,6 @@ void enet_host_broadcast(ENetHost* host, enet_uint8 channelId, ENetPacket* packe
 
 		enet_peer_send(currentPeer, channelId, packet);
 	}
-
-	if (packet->referenceCount == 0)
-		enet_packet_destroy(packet);
 }
 
 void enet_host_set_channel_limit(ENetHost* host, enet_uint16 channelLimit)
@@ -3400,6 +3336,11 @@ void enet_host_set_channel_limit(ENetHost* host, enet_uint16 channelLimit)
 enet_uint16 enet_host_get_channel_limit(ENetHost* host)
 {
     return host->channelLimit;
+}
+
+enet_uint64 enet_host_get_start_time(ENetHost* host)
+{
+    return host->startTime;
 }
 
 void enet_host_bandwidth_limit(ENetHost* host, enet_uint32 incomingBandwidth, enet_uint32 outgoingBandwidth) 
@@ -3725,6 +3666,11 @@ void enet_packet_dispose(ENetPacket* packet)
 		enet_packet_destroy(packet);
 }
 
+void enet_host_set_intercept_callback(ENetHost* host, const void* callback)
+{
+    host->interceptCallback = (ENetHostInterceptCallback)callback;
+}
+
 ENetPeer* enet_host_get_peer(ENetHost* host, enet_uint32 index)
 {
     return index < host->connectedPeers ? &host->peers[index] : NULL;
@@ -3737,7 +3683,7 @@ enet_uint32 enet_host_get_peers_count(ENetHost* host)
 
 enet_uint32 enet_host_get_peers_capacity(ENetHost* host)
 {
-    return host->peerCount;
+    return (enet_uint32)host->peerCount;
 }
 
 enet_uint64 enet_host_get_packets_sent(ENetHost* host) 

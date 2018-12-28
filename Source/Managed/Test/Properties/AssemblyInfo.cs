@@ -1,20 +1,18 @@
-using System;
-using System.Reflection;
+﻿using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("ENet-CSharp")]
-[assembly: AssemblyDescription("Reliable UDP networking library wrapper for the .NET environment")]
+[assembly: AssemblyTitle("TestCSharp")]
+[assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("Nicolas Lebedenco (nicolas@lebedenco.net)")]
-[assembly: AssemblyProduct("ENet-CSharp")]
-[assembly: AssemblyCopyright("Copyright © 2019 Nicolas Lebedenco (nicolas@lebedenco.net)")]
+[assembly: AssemblyCompany("")]
+[assembly: AssemblyProduct("TestCSharp")]
+[assembly: AssemblyCopyright("Copyright ©  2018")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
-// [assembly: InternalsVisibleTo("")]
 
 // Setting ComVisible to false makes the types in this assembly not visible
 // to COM components.  If you need to access a type in this assembly from
@@ -22,7 +20,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[assembly: Guid("87035389-1bb3-40e2-b2a9-c8707e7419ba")]
+[assembly: Guid("61334910-e2cc-430d-9c21-1a0725d7b283")]
 
 // Version information for an assembly consists of the following four values:
 //
@@ -34,5 +32,5 @@ using System.Runtime.InteropServices;
 // You can specify all the values or you can default the Build and Revision Numbers
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("3.0.0.*")]
-[assembly: AssemblyFileVersion("3.0.0.0")]
+[assembly: AssemblyVersion("1.0.0.0")]
+[assembly: AssemblyFileVersion("1.0.0.0")]
