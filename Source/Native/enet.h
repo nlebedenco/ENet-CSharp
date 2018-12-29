@@ -834,6 +834,9 @@ ENET_API int                   enet_socket_shutdown(ENetSocket socket, ENetSocke
 ENET_API void                  enet_socket_destroy(ENetSocket socket);
 ENET_API int                   enet_socket_select(ENetSocket maxSocket, ENetSocketSet* readSet, ENetSocketSet* writeSet, enet_uint32 timeout);
 
+ENET_API void                  enet_address_localhost(ENetAddress* address, enet_uint16 port);
+ENET_API void                  enet_address_anyhost(ENetAddress* address, enet_uint16 port);
+
 ENET_API int                   enet_address_set_ip(ENetAddress* address, const char* hostName);
 ENET_API int                   enet_address_set_name(ENetAddress* address, const char* hostName);
 ENET_API int                   enet_address_get_ip(const ENetAddress* address, char* hostName, size_t nameLength);

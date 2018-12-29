@@ -200,7 +200,7 @@ static ENetCallbacks enet_callbacks = { enet_default_malloc, enet_default_free, 
 int enet_initialize_with_callbacks(const ENetCallbacks* callbacks)
 {
     if (callbacks->malloc == NULL || callbacks->free == NULL)
-        return -1;
+        return ENET_ERROR_INVALID_ARGUMENTS;
 
     enet_callbacks.malloc = callbacks->malloc;
     enet_callbacks.free = callbacks->free;
@@ -3059,7 +3059,7 @@ notifyError:
  * Host
  **************************************************************************/
 
-ENetHost* enet_host_create(const ENetAddress* localAddress, size_t peerCount, enet_uint16 channelLimit, enet_uint32 incomingBandwidth, enet_uint32 outgoingBandwidth) 
+ENetHost* enet_host_create(const ENetAddress* bindAddress, size_t peerCount, enet_uint16 channelLimit, enet_uint32 incomingBandwidth, enet_uint32 outgoingBandwidth) 
 {
 	if (peerCount < 1)
         peerCount = 1;
@@ -3090,8 +3090,8 @@ ENetHost* enet_host_create(const ENetAddress* localAddress, size_t peerCount, en
 		enet_socket_set_option(host->socket, ENET_SOCKOPT_IPV6_V6ONLY, 0);
 
     // Check if socket has been created properly.
-    // localAddress can be null for clients as they don't need to bind to a local port or interface.
-	if (host->socket == ENET_SOCKET_NULL || (localAddress != NULL && enet_socket_bind(host->socket, localAddress) < 0))
+    // bindAddress can be null for clients as they don't need to bind to a local port or interface.
+	if (host->socket == ENET_SOCKET_NULL || (bindAddress != NULL && enet_socket_bind(host->socket, bindAddress) < 0))
 	{
 		if (host->socket != ENET_SOCKET_NULL)
 			enet_socket_destroy(host->socket);
@@ -3108,8 +3108,9 @@ ENetHost* enet_host_create(const ENetAddress* localAddress, size_t peerCount, en
 	enet_socket_set_option(host->socket, ENET_SOCKOPT_SNDBUF, ENET_HOST_SEND_BUFFER_SIZE);
 	enet_socket_set_option(host->socket, ENET_SOCKOPT_IPV6_V6ONLY, 0);
 
-	if (localAddress != NULL && enet_socket_get_address(host->socket, &host->address) < 0)
-		host->address = *localAddress;
+    // If this is a server (bindAddress != NULL) try to set the host address from the socket and fallback to the bind address if it fails.
+	if (bindAddress != NULL && enet_socket_get_address(host->socket, &host->address) < 0)
+		host->address = *bindAddress;
 
 	if (channelLimit == 0 || channelLimit > ENET_PROTOCOL_MAXIMUM_CHANNEL_COUNT)
 	{
@@ -3786,7 +3787,27 @@ enet_uint16 enet_peer_get_channel_count(ENetPeer* peer)
     return peer->channelCount;
 }
 
-	
+
+void enet_address_localhost(ENetAddress* address, enet_uint16 port)
+{
+    if (address == NULL)
+        return;
+
+    address->host = ENET_HOST_LOCALHOST;
+    address->port = port;
+    address->scope_id = ENET_SCOPE_ID_NONE;
+}
+
+void enet_address_anyhost(ENetAddress* address, enet_uint16 port)
+{
+    if (address == NULL)
+        return;
+
+    address->host = ENET_HOST_ANY;
+    address->port = port;
+    address->scope_id = ENET_SCOPE_ID_NONE;
+}
+
 /**************************************************************************
  * Platform Specific (Unix)
  **************************************************************************/
@@ -3804,7 +3825,7 @@ enet_uint32 enet_host_random_seed(void)
 	return (enet_uint32)time(NULL);
 }
 
-int enet_address_set_host_ip(ENetAddress* address, const char* name) 
+int enet_address_set_ip(ENetAddress* address, const char* name) 
 {
 	if (!inet_pton(AF_INET6, name, &address->host)) 
 		return -1;
@@ -3812,7 +3833,7 @@ int enet_address_set_host_ip(ENetAddress* address, const char* name)
 	return 0;
 }
 
-int enet_address_set_host(ENetAddress* address, const char* name) 
+int enet_address_set_name(ENetAddress* address, const char* name) 
 {
 	struct addrinfo hints, *resultList = NULL, *result = NULL;
 
@@ -3859,7 +3880,7 @@ int enet_address_set_host(ENetAddress* address, const char* name)
 	return enet_address_set_host_ip(address, name);
 }
 
-int enet_address_get_host_ip(const ENetAddress* address, char* name, size_t nameLength) 
+int enet_address_get_ip(const ENetAddress* address, char* name, size_t nameLength) 
 {
 	if (inet_ntop(AF_INET6, &address->host, name, nameLength) == NULL) 
 		return -1;
@@ -3867,7 +3888,7 @@ int enet_address_get_host_ip(const ENetAddress* address, char* name, size_t name
 	return 0;
 }
 
-int enet_address_get_host_name(const ENetAddress* address, char* name, size_t nameLength) 
+int enet_address_get_name(const ENetAddress* address, char* name, size_t nameLength) 
 {
 	struct sockaddr_in6 sin;
 	int err;
@@ -4493,9 +4514,9 @@ int inet_pton(int af, const char* src, struct in6_addr* dst)
 		return 0;
 	}
 
-	int enet_address_get_ip(const ENetAddress *address, char* name, size_t nameLength)
+	int enet_address_get_ip(const ENetAddress *address, char* ip, size_t nameLength)
 	{
-		if (inet_ntop(AF_INET6, (PVOID)&address->host, name, nameLength) == NULL)
+		if (inet_ntop(AF_INET6, (PVOID)&address->host, ip, nameLength) == NULL)
 			return -1;
 
 		return 0;

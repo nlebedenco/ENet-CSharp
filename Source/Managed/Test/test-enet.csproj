@@ -6,8 +6,8 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{61334910-E2CC-430D-9C21-1A0725D7B283}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>TestCSharp</RootNamespace>
-    <AssemblyName>TestCSharp</AssemblyName>
+    <RootNamespace>ENet.Test</RootNamespace>
+    <AssemblyName>test-enet</AssemblyName>
     <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
