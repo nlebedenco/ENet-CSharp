@@ -32,13 +32,13 @@ using System.Text;
 namespace ENet
 {
     [Flags]
-    public enum PacketFlags
+    public enum PacketFlags: ushort
     {
         None = 0,
         Reliable = 1 << 0,
         Unsequenced = 1 << 1,
         NoAllocate = 1 << 2,
-        UnreliableFragment = 1 << 3
+        UnreliableFragments = 1 << 3
     }
 
     public enum EventType
