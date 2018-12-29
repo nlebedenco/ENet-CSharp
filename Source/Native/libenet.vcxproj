@@ -80,7 +80,8 @@
       <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
     </Link>
     <PostBuildEvent>
-      <Command>XCOPY $(SolutionDir)bin\$(Configuration)\$(Platform)\*.dll $(SolutionDir)..\..\Assets\Plugins\ENet\ /y  &amp;&amp; XCOPY $(SolutionDir)Managed\ENet.* $(SolutionDir)..\..\Assets\Plugins\ENet\ /y &amp;&amp; XCOPY $(SolutionDir)Managed\Properties\*.cs $(SolutionDir)..\..\Assets\Plugins\ENet\Properties\ /y</Command>
+      <Command>XCOPY $(SolutionDir)bin\$(Configuration)\$(Platform)\*.dll $(SolutionDir)..\..\Assets\Plugins\ENet\ /y  &amp;&amp; XCOPY $(SolutionDir)Managed\ENet.* $(SolutionDir)..\..\Assets\Plugins\ENet\ /y &amp;&amp; XCOPY $(SolutionDir)Managed\Properties\*.cs $(SolutionDir)..\..\Assets\Plugins\ENet\Properties\ /y
+attrib +r "$(SolutionDir)..\..\Assets\Plugins\ENet\ENet.cs"</Command>
       <Message>Copy files to Assets folder</Message>
     </PostBuildEvent>
     <CustomBuildStep>
@@ -112,7 +113,8 @@
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
     </Link>
     <PostBuildEvent>
-      <Command>XCOPY $(SolutionDir)bin\$(Configuration)\$(Platform)\*.dll $(SolutionDir)..\..\Assets\Plugins\ENet\ /y  &amp;&amp; XCOPY $(SolutionDir)Managed\ENet.* $(SolutionDir)..\..\Assets\Plugins\ENet\ /y &amp;&amp; XCOPY $(SolutionDir)Managed\Properties\*.cs $(SolutionDir)..\..\Assets\Plugins\ENet\Properties\ /y</Command>
+      <Command>XCOPY $(SolutionDir)bin\$(Configuration)\$(Platform)\*.dll $(SolutionDir)..\..\Assets\Plugins\ENet\ /y  &amp;&amp; XCOPY $(SolutionDir)Managed\ENet.* $(SolutionDir)..\..\Assets\Plugins\ENet\ /y &amp;&amp; XCOPY $(SolutionDir)Managed\Properties\*.cs $(SolutionDir)..\..\Assets\Plugins\ENet\Properties\ /y
+attrib +r "$(SolutionDir)..\..\Assets\Plugins\ENet\ENet.cs"</Command>
       <Message>Copy files to Assets folder</Message>
     </PostBuildEvent>
     <CustomBuildStep>
