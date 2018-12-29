@@ -2029,7 +2029,7 @@ static int enet_protocol_send_outgoing_commands(ENetHost* host, ENetEvent* event
 
 #ifdef ENET_LZ4
             size_t shouldCompress = 0;
-			if (host->compressionEnabled) 
+			if (host->compressionEnabled && host->packetSize > 64)
 			{
 				size_t originalSize = host->packetSize - sizeof(ENetProtocolHeader);
 				size_t totalSize = originalSize;
