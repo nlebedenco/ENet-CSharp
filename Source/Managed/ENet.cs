@@ -553,12 +553,7 @@ namespace ENet
             ThrowIfChannelLimitOutOfRange(channelCount);
 
             var nativeAddress = address.nativeAddress;
-            var peer = new Peer(Native.enet_host_connect(nativeHost, ref nativeAddress, channelCount, status));
-
-            if (peer.nativePeer == IntPtr.Zero)
-                throw new InvalidOperationException("Host connect call failed");
-
-            return peer;
+            return new Peer(Native.enet_host_connect(nativeHost, ref nativeAddress, channelCount, status));
         }
 
         public Peer Connect(string host, ushort port, ushort channelCount = 0, uint status = 0)
@@ -677,18 +672,13 @@ namespace ENet
             }
         }
 
-        internal IntPtr nativePeer;
+        private readonly IntPtr nativePeer;
 
         internal Peer(IntPtr nativePeer)
         {
             this.nativePeer = nativePeer;
 
             Id = (nativePeer != IntPtr.Zero) ? Native.enet_peer_get_id(nativePeer) : 0;
-        }
-
-        public bool IsValid
-        {
-            get { return nativePeer != IntPtr.Zero; }
         }
 
         public uint Id { get; }
@@ -834,7 +824,7 @@ namespace ENet
             get
             {
                 ThrowIfNotValid();
-                IntPtr ptr = Native.enet_peer_get_userdata(nativePeer);
+                var ptr = Native.enet_peer_get_userdata(nativePeer);
                 return ptr == IntPtr.Zero ? null : GCHandle.FromIntPtr(ptr).Target;
             }
 
@@ -849,6 +839,24 @@ namespace ENet
                     Native.enet_peer_set_userdata(nativePeer, GCHandle.ToIntPtr(handle));
                 }
             }
+        }
+
+        public object ReleaseUserData()
+        {
+            ThrowIfNotValid();
+
+            object value = null;
+
+            var userDataPtr = Native.enet_peer_get_userdata(nativePeer);
+            if (userDataPtr != IntPtr.Zero)
+            {
+                var handle = GCHandle.FromIntPtr(userDataPtr);
+                value = handle.Target;
+                handle.Free();
+                Native.enet_peer_set_userdata(nativePeer, IntPtr.Zero);
+            }
+
+            return value;
         }
 
         public void ConfigureThrottle(uint interval, uint acceleration, uint deceleration)
