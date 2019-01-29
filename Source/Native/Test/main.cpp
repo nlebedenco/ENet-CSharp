@@ -59,7 +59,7 @@ void client()
     }
 
     ENetEvent event;
-    while (enet_host_service(client, (ENetEvent*)memset(&event, 0, sizeof(event)), TEST_CONNECT_TIMEOUT) > 0)
+    while (enet_host_service(client, (ENetEvent*)memset(&event, 0, sizeof(event)), TEST_CONNECT_TIMEOUT / 2 ) > 0)
     {
         // Clients should onnly receive events from the connected peer.
         if (peer != event.peer)
@@ -72,11 +72,11 @@ void client()
         {
         case ENET_EVENT_TYPE_CONNECT:
             enet_peer_get_name(event.peer, name, sizeof(name));
-            client_info("Connected to %s:%d.\n", name, enet_peer_get_port(event.peer));
+            client_info("Connected to %s:%d. Connection Id=%08X. Incoming Peer Id=%d. Outgoing Peer Id=%d.\n", name, enet_peer_get_port(event.peer), event.peer->connectId, event.peer->incomingPeerId, event.peer->outgoingPeerId);
             send_message(event.peer, ChallengeMsg, strlen(ChallengeMsg) + 1, ENET_PACKET_FLAG_RELIABLE, 0);
             break;
         case ENET_EVENT_TYPE_RECEIVE:
-            client_info("Received packet with %Iu bytes of data from %s:%d on channel %u.\n", event.packet->dataLength, name, enet_peer_get_port(event.peer), event.channelId);
+            client_info("Received packet with %Iu bytes of data from %s:%d on channel %u. Connection Id=%08X. Incoming Peer Id=%d. Outgoing Peer Id=%d.\n", event.packet->dataLength, name, enet_peer_get_port(event.peer), event.channelId, event.peer->connectId, event.peer->incomingPeerId, event.peer->outgoingPeerId);
             if (event.packet->dataLength != (strlen(ResponseMsg) + 1))
             {
                 client_error("Invalid packet size.\n");
@@ -94,15 +94,16 @@ void client()
             enet_packet_destroy(event.packet); // release the packet now that we're done using it.
             break;
         case ENET_EVENT_TYPE_DISCONNECT:
-            client_info("Disconnected from %s:%d.\n", name, enet_peer_get_port(event.peer));
+            client_info("Disconnected from %s:%d. Connection Id=%08X. Incoming Peer Id=%d. Outgoing Peer Id=%d.\n", name, enet_peer_get_port(event.peer), event.peer->connectId, event.peer->incomingPeerId, event.peer->outgoingPeerId);
             break;
         case ENET_EVENT_TYPE_TIMEOUT:
-            client_error("Timeout.\n");
+            client_error("Timeout. Connection Id=%08X. Incoming Peer Id=%d. Outgoing Peer Id=%d.\n", event.peer->connectId, event.peer->incomingPeerId, event.peer->outgoingPeerId);
             goto terminate;
         }
     }
 
 terminate:
+    enet_peer_disconnect_immediately(peer, 0);
     enet_host_destroy(client);
 
 finish:
@@ -147,10 +148,10 @@ void server()
         {
         case ENET_EVENT_TYPE_CONNECT:
             enet_peer_get_name(event.peer, name, sizeof(name));
-            server_info("Connected to %s:%d.\n", name, enet_peer_get_port(event.peer));
+            server_info("Connected to %s:%d. Connection Id=%08X. Incoming Peer Id=%d. Outgoing Peer Id=%d.\n", name, enet_peer_get_port(event.peer), event.peer->connectId, event.peer->incomingPeerId, event.peer->outgoingPeerId);
             break;
         case ENET_EVENT_TYPE_RECEIVE:
-            server_info("Received packet with %Iu bytes of data from %s:%d on channel %u.\n", event.packet->dataLength, name, enet_peer_get_port(event.peer), event.channelId);
+            server_info("Received packet with %Iu bytes of data from %s:%d on channel %u. Connection Id=%08X. Incoming Peer Id=%d. Outgoing Peer Id=%d.\n", event.packet->dataLength, name, enet_peer_get_port(event.peer), event.channelId, event.peer->connectId, event.peer->incomingPeerId, event.peer->outgoingPeerId);
             if (event.packet->dataLength != (strlen(ChallengeMsg) + 1))
             {
                 server_error("Invalid packet size.\n");
@@ -169,10 +170,10 @@ void server()
             send_message(event.peer, ResponseMsg, strlen(ResponseMsg) + 1, ENET_PACKET_FLAG_RELIABLE, 1);
             break;
         case ENET_EVENT_TYPE_DISCONNECT:
-            server_info("Disconnected from %s:%d.\n", name, enet_peer_get_port(event.peer));
+            server_info("Disconnected from %s:%d. Connection Id=%08X. Incoming Peer Id=%d. Outgoing Peer Id=%d.\n", name, enet_peer_get_port(event.peer), event.peer->connectId, event.peer->incomingPeerId, event.peer->outgoingPeerId);
             break;
         case ENET_EVENT_TYPE_TIMEOUT:
-            server_error("Timeout.\n");
+            server_error("Timeout. Connection Id=%08X. Incoming Peer Id=%d. Outgoing Peer Id=%d.\n", event.peer->connectId, event.peer->incomingPeerId, event.peer->outgoingPeerId);
             goto terminate;
         }
     }
@@ -199,10 +200,15 @@ int main(int argc, char* argv[])
     atexit(enet_finalize);
 
     std::thread server(&server);
-    std::thread client(&client);
+    std::thread clients[] = {
+        std::thread(&client),
+        std::thread(&client),
+        std::thread(&client)
+    };
 
     server.join();
-    client.join();
+    for (auto& client: clients)
+        client.join();
 
     return EXIT_SUCCESS;
 }

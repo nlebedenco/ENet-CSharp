@@ -873,7 +873,8 @@ ENET_API void                  enet_host_broadcast(ENetHost* host, enet_uint8 ch
 ENET_API void                  enet_host_bandwidth_limit(ENetHost* host, enet_uint32 incomingBandwidth, enet_uint32 outgoingBandwidth);
 
          void                  enet_host_bandwidth_throttle(ENetHost* host);
-         enet_uint32           enet_host_random_seed(void);
+         enet_uint32           enet_host_random_seed();
+         enet_uint32           enet_host_next_random(ENetHost* host);
 
 ENET_API int                   enet_peer_send(ENetPeer* peer, enet_uint8 channelId, ENetPacket* packet);
 ENET_API ENetPacket*           enet_peer_receive(ENetPeer* peer, enet_uint8* channelId);
@@ -921,6 +922,8 @@ ENET_API enet_uint64           enet_host_get_bytes_sent(ENetHost* host);
 ENET_API enet_uint64           enet_host_get_bytes_received(ENetHost* host);
 
 ENET_API enet_uint32           enet_peer_get_id(ENetPeer* peer);
+ENET_API enet_uint16           enet_peer_get_incoming_id(ENetPeer* peer);
+ENET_API enet_uint16           enet_peer_get_outgoing_id(ENetPeer* peer);
 ENET_API int                   enet_peer_get_ip(ENetPeer* peer, char* ip, size_t length);
 ENET_API int                   enet_peer_get_name(ENetPeer* peer, char* name, size_t length);
 ENET_API enet_uint16           enet_peer_get_port(ENetPeer* peer);

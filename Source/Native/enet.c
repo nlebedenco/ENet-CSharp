@@ -3121,9 +3121,7 @@ ENetHost* enet_host_create(const ENetAddress* bindAddress, size_t peerCount, ene
 		channelLimit = ENET_PROTOCOL_MINIMUM_CHANNEL_COUNT;
 	}
 
-	host->randomSeed = (enet_uint32)(size_t)host;
-	host->randomSeed += enet_host_random_seed();
-	host->randomSeed = (host->randomSeed << 16) | (host->randomSeed >> 16);
+	host->randomSeed = (enet_uint32)(size_t)host + enet_host_random_seed();
 	host->channelLimit = channelLimit;
 	host->incomingBandwidth = incomingBandwidth;
 	host->outgoingBandwidth = outgoingBandwidth;
@@ -3260,7 +3258,10 @@ ENetPeer* enet_host_connect(ENetHost* host, const ENetAddress* address, enet_uin
 	currentPeer->channelCount = channelCount;
 	currentPeer->state = ENET_PEER_STATE_CONNECTING;
 	currentPeer->address = *address;
-	currentPeer->connectId = ++host->randomSeed;
+	currentPeer->connectId = enet_host_next_random(host);
+    // Don't use 0 for connection id. 
+    if (currentPeer->connectId == 0)
+        currentPeer->connectId = enet_host_next_random(host);
 
 	if (host->outgoingBandwidth == 0) 
 		currentPeer->windowSize = ENET_PROTOCOL_MAXIMUM_WINDOW_SIZE;
@@ -3710,6 +3711,16 @@ enet_uint64 enet_host_get_bytes_received(ENetHost* host)
 enet_uint32 enet_peer_get_id(ENetPeer* peer) 
 {
 	return peer->connectId;
+}
+
+enet_uint16 enet_peer_get_incoming_id(ENetPeer* peer)
+{
+    return peer->incomingPeerId;
+}
+
+enet_uint16 enet_peer_get_outgoing_id(ENetPeer* peer)
+{
+    return peer->outgoingPeerId;
 }
 
 int enet_peer_get_ip(ENetPeer* peer, char* ip, size_t length)
@@ -4460,9 +4471,14 @@ int inet_pton(int af, const char* src, struct in6_addr* dst)
 		WSACleanup();
 	}
 
-	enet_uint32 enet_host_random_seed(void) 
+    enet_uint32 enet_host_random_seed()
+    {
+        return (enet_uint32)timeGetTime();
+    }
+
+	enet_uint32 enet_host_next_random(ENetHost* host) 
 	{
-		return (enet_uint32)timeGetTime();
+		return host->randomSeed = ((uint64_t)host->randomSeed * 48271u) % 0x7fffffff;
 	}
 
 	int enet_address_set_ip(ENetAddress* address, const char* name) 
