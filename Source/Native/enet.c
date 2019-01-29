@@ -3259,9 +3259,6 @@ ENetPeer* enet_host_connect(ENetHost* host, const ENetAddress* address, enet_uin
 	currentPeer->state = ENET_PEER_STATE_CONNECTING;
 	currentPeer->address = *address;
 	currentPeer->connectId = enet_host_next_random(host);
-    // Don't use 0 for connection id. 
-    if (currentPeer->connectId == 0)
-        currentPeer->connectId = enet_host_next_random(host);
 
 	if (host->outgoingBandwidth == 0) 
 		currentPeer->windowSize = ENET_PROTOCOL_MAXIMUM_WINDOW_SIZE;
