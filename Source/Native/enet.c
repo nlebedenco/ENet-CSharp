@@ -3833,7 +3833,7 @@ void enet_finalize(void) { }
 
 enet_uint32 enet_host_random_seed(void) 
 {
-	return (enet_uint32)time(NULL);
+    return ((enet_uint32)time(NULL) % 0xfffffffau) + 1u;
 }
 
 int enet_address_set_ip(ENetAddress* address, const char* name) 
@@ -4473,12 +4473,12 @@ int inet_pton(int af, const char* src, struct in6_addr* dst)
 
     enet_uint32 enet_host_random_seed()
     {
-        return (enet_uint32)timeGetTime();
+        return ((enet_uint32)timeGetTime() % 0xfffffffau) + 1u;
     }
 
 	enet_uint32 enet_host_next_random(ENetHost* host) 
 	{
-		return host->randomSeed = ((uint64_t)host->randomSeed * 48271u) % 0x7fffffff;
+		return host->randomSeed = ((uint64_t)host->randomSeed * 279470273u) % 0xfffffffbu;
 	}
 
 	int enet_address_set_ip(ENetAddress* address, const char* name) 

@@ -677,11 +677,29 @@ namespace ENet
         internal Peer(IntPtr nativePeer)
         {
             this.nativePeer = nativePeer;
-
-            Id = (nativePeer != IntPtr.Zero) ? Native.enet_peer_get_id(nativePeer) : 0;
+            if (nativePeer != IntPtr.Zero)
+            {
+                Id = Native.enet_peer_get_id(nativePeer);
+                LocalIndex = Native.enet_peer_get_incoming_id(nativePeer);
+                RemoteIndex = Native.enet_peer_get_outgoing_id(nativePeer);
+            }
+            else
+            {
+                Id = 0;
+                LocalIndex = 0;
+                RemoteIndex = 0;
+            }
+            
         }
 
         public uint Id { get; }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public ushort LocalIndex { get; }
+
+        public ushort RemoteIndex { get; }
 
         public string IpAddress
         {
@@ -1061,7 +1079,6 @@ namespace ENet
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
         internal static extern ulong enet_time();
 
-        
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
         internal static extern void enet_address_localhost(ref ENetAddress address, ushort port);
 
@@ -1172,6 +1189,12 @@ namespace ENet
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
         internal static extern uint enet_peer_get_id(IntPtr peer);
+
+        [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ushort enet_peer_get_incoming_id(IntPtr peer);
+
+        [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ushort enet_peer_get_outgoing_id(IntPtr peer);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
         internal static extern int enet_peer_get_ip(IntPtr peer, byte[] ip, IntPtr length);
