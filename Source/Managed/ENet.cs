@@ -257,9 +257,23 @@ namespace ENet
                 throw new ArgumentNullException("data");
 
             if (length < 0 || length > data.Length)
-                throw new ArgumentOutOfRangeException();
+                throw new ArgumentOutOfRangeException("length");
 
             return new Packet(Native.enet_packet_create(data, (IntPtr)length, flags));
+        }
+
+        public static Packet Create(byte[] data, int index, int length, PacketFlags flags = PacketFlags.None)
+        {
+            if (data == null)
+                throw new ArgumentNullException("data");
+
+            if (index < 0 || index >= data.Length)
+                throw new ArgumentOutOfRangeException("index");
+
+            if (length < 0 || (index + length) > data.Length)
+                throw new ArgumentOutOfRangeException("length");
+
+            return new Packet(Native.enet_packet_create_offset(data, (IntPtr)length, (IntPtr)index, flags));
         }
 
         internal Packet(IntPtr packet)
@@ -1098,7 +1112,7 @@ namespace ENet
         internal static extern IntPtr enet_packet_create(byte[] data, IntPtr dataLength, PacketFlags flags);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern IntPtr enet_packet_create(IntPtr data, IntPtr dataLength, PacketFlags flags);
+        internal static extern IntPtr enet_packet_create_offset(byte[] data, IntPtr dataLength, IntPtr dataOffset, PacketFlags flags);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
         internal static extern IntPtr enet_packet_get_data(IntPtr packet);
