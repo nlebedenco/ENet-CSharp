@@ -199,37 +199,18 @@ namespace ENet
 
     public struct Event
     {
-        internal ENetEvent nativeEvent;
+        private ENetEvent nativeEvent;
 
         internal Event(ENetEvent nativeEvent)
         {
             this.nativeEvent = nativeEvent;
         }
 
-        public EventType Type
-        {
-            get { return nativeEvent.Type; }
-        }
-
-        public Peer Peer
-        {
-            get { return new Peer(nativeEvent.Peer); }
-        }
-
-        public byte ChannelId
-        {
-            get { return nativeEvent.ChannelId; }
-        }
-
-        public uint Status
-        {
-            get { return nativeEvent.Status; }
-        }
-
-        public Packet Packet
-        {
-            get { return new Packet(nativeEvent.Packet); }
-        }
+        public EventType Type => nativeEvent.Type;
+        public Peer Peer => new Peer(nativeEvent.Peer);
+        public byte ChannelId => nativeEvent.ChannelId;
+        public uint Status => nativeEvent.Status;
+        public Packet Packet => new Packet(nativeEvent.Packet);
     }
 
     public struct Callbacks
@@ -626,17 +607,16 @@ namespace ENet
             packet.nativePacket = IntPtr.Zero;
         }
 
-        public void Update(out Event newEvent, int timeout = 0)
+        public void Update(out Event netEvent, int timeout = 0)
         {
             if (timeout < 0)
                 throw new ArgumentOutOfRangeException("timeout");
 
             ThrowIfNotValid();
 
-            ENetEvent nativeEvent;
-            int errcode = Native.enet_host_service(nativeHost, out nativeEvent, (uint)timeout);
+            int errcode = Native.enet_host_service(nativeHost, out ENetEvent nativeEvent, (uint)timeout);
             Native.ThrowIfError(errcode);
-            newEvent = new Event(nativeEvent);
+            netEvent = new Event(nativeEvent);
         }
 
         public void Flush()
