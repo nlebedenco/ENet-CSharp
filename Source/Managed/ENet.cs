@@ -52,7 +52,6 @@ namespace ENet
 
     public enum PeerState
     {
-        Undefined = -1,
         Disconnected = 0,
         Connecting = 1,
         AcknowledgingConnect = 2,
@@ -688,9 +687,6 @@ namespace ENet
 
         public uint Id { get; }
 
-        /// <summary>
-        /// 
-        /// </summary>
         public ushort LocalIndex { get; }
 
         public ushort RemoteIndex { get; }
@@ -752,7 +748,7 @@ namespace ENet
 
         public PeerState State
         {
-            get { return nativePeer == IntPtr.Zero ? PeerState.Undefined : Native.enet_peer_get_state(nativePeer); }
+            get { return nativePeer == IntPtr.Zero ? PeerState.Disconnected : Native.enet_peer_get_state(nativePeer); }
         }
 
         public ushort ChannelCount
