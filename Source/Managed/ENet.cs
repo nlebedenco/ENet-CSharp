@@ -752,7 +752,7 @@ namespace ENet
 
         public PeerState State
         {
-            get { return nativePeer == IntPtr.Zero ? PeerState.Disconnected : Native.enet_peer_get_state(nativePeer); }
+            get { return nativePeer == IntPtr.Zero ? PeerState.Invalid : Native.enet_peer_get_state(nativePeer); }
         }
 
         public ushort ChannelCount
@@ -921,7 +921,7 @@ namespace ENet
             }
         }
 
-        public void Timeout(uint timeoutLimit, uint timeoutMinimum, uint timeoutMaximum)
+        public void SetTimeout(uint timeoutLimit, uint timeoutMinimum, uint timeoutMaximum)
         {
             ThrowIfNotValid();
             Native.enet_peer_timeout(nativePeer, timeoutLimit, timeoutMinimum, timeoutMaximum);
@@ -934,8 +934,8 @@ namespace ENet
         /// </summary>
         public void Disconnect(uint status = 0)
         {
-            ThrowIfNotValid();
-            Native.enet_peer_disconnect(nativePeer, status);
+            if (nativePeer != IntPtr.Zero)
+                Native.enet_peer_disconnect(nativePeer, status);
         }
 
         /// <summary>
@@ -945,9 +945,11 @@ namespace ENet
         /// </summary>
         public void DisconnectImmediately(uint status = 0)
         {
-            ThrowIfNotValid();
-            ReleaseUserData(nativePeer);
-            Native.enet_peer_disconnect_immediately(nativePeer, status);
+            if (nativePeer != IntPtr.Zero)
+            {
+                ReleaseUserData(nativePeer);
+                Native.enet_peer_disconnect_immediately(nativePeer, status);
+            }
         }
 
         /// <summary>
@@ -957,8 +959,8 @@ namespace ENet
         /// </summary>
         public void DisconnectWhenReady(uint status = 0)
         {
-            ThrowIfNotValid();
-            Native.enet_peer_disconnect_when_ready(nativePeer, status);
+            if (nativePeer != IntPtr.Zero)
+                Native.enet_peer_disconnect_when_ready(nativePeer, status);
         }
 
         /// <summary>
@@ -968,9 +970,11 @@ namespace ENet
         /// </summary>
         public void Reset()
         {
-            ThrowIfNotValid();
-            ReleaseUserData(nativePeer);
-            Native.enet_peer_reset(nativePeer);
+            if (nativePeer != IntPtr.Zero)
+            {
+                ReleaseUserData(nativePeer);
+                Native.enet_peer_reset(nativePeer);
+            }
         }
 
         private void ThrowIfNotValid()
