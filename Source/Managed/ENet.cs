@@ -162,10 +162,10 @@ namespace ENet
             set
             {
                 if (value == null)
-                    throw new ArgumentNullException("value");
+                    throw new ArgumentNullException(nameof(value));
 
                 if (Native.enet_address_set_name(ref nativeAddress, Encoding.ASCII.GetBytes(value)) != 0)
-                    throw new ArgumentException("Name cannot be resolved", "value"); 
+                    throw new ArgumentException("Name cannot be resolved", nameof(value)); 
             }
         }
 
@@ -235,10 +235,10 @@ namespace ENet
         public static Packet Create(byte[] data, int length, PacketFlags flags = PacketFlags.None)
         {
             if (data == null)
-                throw new ArgumentNullException("data");
+                throw new ArgumentNullException(nameof(data));
 
             if (length < 0 || length > data.Length)
-                throw new ArgumentOutOfRangeException("length");
+                throw new ArgumentOutOfRangeException(nameof(length));
 
             return new Packet(Native.enet_packet_create(data, (IntPtr)length, flags));
         }
@@ -246,13 +246,13 @@ namespace ENet
         public static Packet Create(byte[] data, int index, int length, PacketFlags flags = PacketFlags.None)
         {
             if (data == null)
-                throw new ArgumentNullException("data");
+                throw new ArgumentNullException(nameof(data));
 
             if (index < 0 || index >= data.Length)
-                throw new ArgumentOutOfRangeException("index");
+                throw new ArgumentOutOfRangeException(nameof(index));
 
             if (length < 0 || (index + length) > data.Length)
-                throw new ArgumentOutOfRangeException("length");
+                throw new ArgumentOutOfRangeException(nameof(length));
 
             return new Packet(Native.enet_packet_create_offset(data, (IntPtr)length, (IntPtr)index, flags));
         }
@@ -287,7 +287,7 @@ namespace ENet
         public void CopyTo(byte[] destination)
         {
             if (destination == null)
-                throw new ArgumentNullException("destination");
+                throw new ArgumentNullException(nameof(destination));
 
             ThrowIfNotValid();
 
@@ -347,7 +347,7 @@ namespace ENet
         public static Host Create(Address bindAddress, int peerLimit = 8, ushort channelLimit = 1, uint incomingBandwidth = 0, uint outgoingBandwidth = 0)
         {
             if (peerLimit < 1 || peerLimit > Runtime.MaxPeers)
-                throw new ArgumentOutOfRangeException("peerLimit");
+                throw new ArgumentOutOfRangeException(nameof(peerLimit));
 
             ThrowIfChannelLimitOutOfRange(channelLimit);
 
@@ -468,7 +468,7 @@ namespace ENet
         private static void ThrowIfChannelLimitOutOfRange(ushort channelLimit)
         {
             if (channelLimit < 1 || channelLimit > Runtime.MaxChannelCount)
-                throw new ArgumentOutOfRangeException("channelLimit");
+                throw new ArgumentOutOfRangeException(nameof(channelLimit));
         }
 
         private void ThrowIfNotValid()
@@ -613,7 +613,7 @@ namespace ENet
         public void Update(out Event netEvent, int timeout = 0)
         {
             if (timeout < 0)
-                throw new ArgumentOutOfRangeException("timeout");
+                throw new ArgumentOutOfRangeException(nameof(timeout));
 
             ThrowIfNotValid();
 
@@ -888,7 +888,7 @@ namespace ENet
 
             ushort channelCount = Native.enet_peer_get_channel_count(nativePeer);
             if (channelId >= channelCount)
-                throw new ArgumentOutOfRangeException("channelId");
+                throw new ArgumentOutOfRangeException(nameof(channelId));
 
             int errcode = Native.enet_peer_send(nativePeer, channelId, packet.nativePacket);
             Native.ThrowIfError(errcode);
@@ -1272,7 +1272,7 @@ namespace ENet
         public static int AnsiStrLen(this byte[] data)
         {
             if (data == null)
-                throw new ArgumentNullException("data");
+                throw new ArgumentNullException(nameof(data));
 
             int i;
             for (i = 0; i < data.Length && data[i] != 0; i++)
