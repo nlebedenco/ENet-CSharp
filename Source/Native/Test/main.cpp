@@ -61,13 +61,16 @@ void client()
     ENetEvent event;
     while (enet_host_service(client, (ENetEvent*)memset(&event, 0, sizeof(event)), TEST_CONNECT_TIMEOUT / 2 ) > 0)
     {
-        // Clients should onnly receive events from the connected peer.
+        if (event.type == ENET_EVENT_TYPE_NONE)
+            continue;
+
+        // Clients only receive events from a connected peer.
         if (peer != event.peer)
         {
             client_error("Connected peer and event peer do not match.\n");
             goto terminate;
         }
-
+        
         switch (event.type)
         {
         case ENET_EVENT_TYPE_CONNECT:
@@ -92,6 +95,7 @@ void client()
             client_info("Packet data: %s.\n", event.packet->data);
 
             enet_packet_destroy(event.packet); // release the packet now that we're done using it.
+            enet_peer_disconnect(event.peer, 0);
             break;
         case ENET_EVENT_TYPE_DISCONNECT:
             client_info("Disconnected from %s:%d. Connection Id=%08X. Incoming Peer Id=%d. Outgoing Peer Id=%d.\n", name, enet_peer_get_port(event.peer), event.peer->connectId, event.peer->incomingPeerId, event.peer->outgoingPeerId);
@@ -144,6 +148,9 @@ void server()
     ENetEvent event;
     while (enet_host_service(server, (ENetEvent*)memset(&event, 0, sizeof(event)), TEST_CONNECT_TIMEOUT) > 0)
     {
+        if (event.type == ENET_EVENT_TYPE_NONE)
+            continue;
+
         switch (event.type)
         {
         case ENET_EVENT_TYPE_CONNECT:
@@ -205,7 +212,7 @@ int main(int argc, char* argv[])
         std::thread(&client),
         std::thread(&client)
     };
-
+    
     server.join();
     for (auto& client: clients)
         client.join();

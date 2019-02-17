@@ -52,6 +52,7 @@ namespace ENet
 
     public enum PeerState
     {
+        Invalid = -1,
         Disconnected = 0,
         Connecting = 1,
         AcknowledgingConnect = 2,
@@ -325,7 +326,7 @@ namespace ENet
         #endregion
     }
 
-    public sealed class Host: IDisposable
+    public sealed class Host: IDisposable 
     {
         /// <summary>
         /// Create a client host not bound to any specific local address. Local port is a random free port and maximum number of outgoing connections is 1.
@@ -359,6 +360,9 @@ namespace ENet
             return new Host(nativeHost);
         }
 
+        /// <summary>
+        /// Create a server host bound to a specific local address and port.
+        /// </summary>
         public static Host Create(string host, ushort port, int peerLimit = 8, ushort channelLimit = 1, uint incomingBandwidth = 0, uint outgoingBandwidth = 0)
         {
             return Create(new Address(host, port), peerLimit, channelLimit, incomingBandwidth, outgoingBandwidth);

@@ -2578,6 +2578,9 @@ void enet_peer_timeout(ENetPeer* peer, enet_uint32 timeoutLimit, enet_uint32 tim
 
 void enet_peer_disconnect_immediately(ENetPeer* peer, enet_uint32 status)
 {
+    if (peer == NULL)
+        return;
+
 	if (peer->state == ENET_PEER_STATE_DISCONNECTED)
 		return;
 
@@ -4751,7 +4754,8 @@ int inet_pton(int af, const char* src, struct in6_addr* dst)
 
 		if (WSARecvFrom(socket, (LPWSABUF)buffers, (DWORD)bufferCount, &recvLength, &flags, address != NULL ? (struct sockaddr*)&sin : NULL, address != NULL ? &sinLength : NULL, NULL, NULL) == SOCKET_ERROR) 
 		{
-			switch (WSAGetLastError()) 
+			const int err = WSAGetLastError();
+			switch (err) 
 			{
 			case WSAEWOULDBLOCK:
 			case WSAECONNRESET:
