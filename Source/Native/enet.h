@@ -795,6 +795,8 @@ typedef struct _ENetHost
     ENetBuffer                  buffers[ENET_BUFFER_MAXIMUM];
     size_t                      bufferCount;
     enet_uint8                  compressionEnabled;           // if true will output packets compressed (incoming packets are always handled according to the COMP flag regardless of this setting)
+    size_t                      compressionBufferSize;
+    char*                       compressionBuffer;
     enet_uint8                  crcEnabled;                   // if true will output packets with crc (incoming packets are always handled according to the CRC flag regardless of this setting)
     enet_uint8                  packetData[2][ENET_HOST_PACKET_DATA_LENGTH_MAX];
     ENetAddress                 receivedAddress;

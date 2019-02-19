@@ -2036,23 +2036,27 @@ static int enet_protocol_send_outgoing_commands(ENetHost* host, ENetEvent* event
 				size_t dataSize = 0;
 
 				const ENetBuffer* buffers = &host->buffers[1];
-				char* data = (char*)enet_malloc(originalSize);
-                if (data != NULL)
+                if (host->compressionBufferSize < totalSize)
+                {
+                    enet_free(host->compressionBuffer);
+                    host->compressionBuffer = (char*)enet_malloc(totalSize);
+                    host->compressionBufferSize = totalSize;
+                }
+
+                if (host->compressionBuffer != NULL)
                 {
                     while (totalSize)
                     {
                         for (int i = 0; i < host->bufferCount - 1; i++)
                         {
                             size_t copySize = ENET_MIN(totalSize, buffers[i].dataLength);
-                            memcpy(data + dataSize, buffers[i].data, copySize);
+                            memcpy(host->compressionBuffer + dataSize, buffers[i].data, copySize);
                             totalSize -= copySize;
                             dataSize += copySize;
                         }
                     }
 
-                    size_t compressedSize = LZ4_compress_default((const char*)data, (char*)host->packetData[1], (int)dataSize, (int)originalSize);
-
-                    enet_free(data);
+                    size_t compressedSize = LZ4_compress_default(host->compressionBuffer, (char*)host->packetData[1], (int)dataSize, (int)originalSize);
 
                     if (compressedSize > 0 && compressedSize < originalSize)
                     {
@@ -3088,22 +3092,23 @@ ENetHost* enet_host_create(const ENetAddress* bindAddress, size_t peerCount, ene
 	memset(host->peers, 0, peerCount * sizeof(ENetPeer));
 
 	host->socket = enet_socket_create(ENET_SOCKET_TYPE_DATAGRAM);
-
-	if (host->socket != ENET_SOCKET_NULL)
-		enet_socket_set_option(host->socket, ENET_SOCKOPT_IPV6_V6ONLY, 0);
-
-    // Check if socket has been created properly.
-    // bindAddress can be null for clients as they don't need to bind to a local port or interface.
-	if (host->socket == ENET_SOCKET_NULL || (bindAddress != NULL && enet_socket_bind(host->socket, bindAddress) < 0))
+	if (host->socket == ENET_SOCKET_NULL)
 	{
-		if (host->socket != ENET_SOCKET_NULL)
-			enet_socket_destroy(host->socket);
-
 		enet_free(host->peers);
 		enet_free(host);
 
 		return NULL;
 	}
+
+    // bindAddress can be null for clients as they don't need to bind to a local port or interface.
+    if (bindAddress != NULL && enet_socket_bind(host->socket, bindAddress) < 0)
+    {
+        enet_socket_destroy(host->socket);
+        enet_free(host->peers);
+        enet_free(host);
+
+        return NULL;
+    }
 
 	enet_socket_set_option(host->socket, ENET_SOCKOPT_NONBLOCK, 1);
 	enet_socket_set_option(host->socket, ENET_SOCKOPT_BROADCAST, 1);
@@ -3112,7 +3117,7 @@ ENetHost* enet_host_create(const ENetAddress* bindAddress, size_t peerCount, ene
 	enet_socket_set_option(host->socket, ENET_SOCKOPT_IPV6_V6ONLY, 0);
 
     // If this is a server (bindAddress != NULL) try to set the host address from the socket and fallback to the bind address if it fails.
-	if (bindAddress != NULL && enet_socket_get_address(host->socket, &host->address) < 0)
+	if (bindAddress != NULL && (enet_socket_get_address(host->socket, &host->address) < 0))
 		host->address = *bindAddress;
 
 	if (channelLimit == 0 || channelLimit > ENET_PROTOCOL_MAXIMUM_CHANNEL_COUNT)
@@ -3137,6 +3142,8 @@ ENetHost* enet_host_create(const ENetAddress* bindAddress, size_t peerCount, ene
 	host->commandCount = 0;
 	host->bufferCount = 0;
 	host->compressionEnabled = 0;
+    host->compressionBufferSize = 0;
+    host->compressionBuffer = NULL;
     host->crcEnabled = 1;
 	host->receivedAddress.host = ENET_HOST_ANY;
 	host->receivedAddress.port = 0;
@@ -3186,6 +3193,7 @@ void enet_host_destroy(ENetHost* host)
 		enet_peer_reset(currentPeer);
 
 	enet_free(host->peers);
+    enet_free(host->compressionBuffer);
 	enet_free(host);
 }
 
@@ -3864,7 +3872,7 @@ int enet_address_set_name(ENetAddress* address, const char* name)
 
 				((uint32_t*)&address->host.s6_addr)[0] = 0;
 				((uint32_t*)&address->host.s6_addr)[1] = 0;
-				((uint32_t*)&address->host.s6_addr)[2] = htonl(0xffff);
+				((uint32_t*)&address->host.s6_addr)[2] = ENET_HOST_TO_NET_32(0xffff);
 				((uint32_t*)&address->host.s6_addr)[3] = sin->sin_addr.s_addr;
 
 				freeaddrinfo(resultList);
@@ -4524,7 +4532,7 @@ int inet_pton(int af, const char* src, struct in6_addr* dst)
 
 		((enet_uint32*)&address->host.s6_addr)[0] = 0;
 		((enet_uint32*)&address->host.s6_addr)[1] = 0;
-		((enet_uint32*)&address->host.s6_addr)[2] = htonl(0xffff);
+		((enet_uint32*)&address->host.s6_addr)[2] = ENET_HOST_TO_NET_32(0xffff);
 		((enet_uint32*)&address->host.s6_addr)[3] = *(enet_uint32*)hostEntry->h_addr_list[0];
 
 		return 0;
