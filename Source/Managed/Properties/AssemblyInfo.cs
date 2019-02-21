@@ -6,7 +6,7 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("ENet3")]
+[assembly: AssemblyTitle("Reliable UDP networking library wrapper for the .NET framework")]
 [assembly: AssemblyDescription("Reliable UDP networking library wrapper for the .NET framework")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Nicolas Lebedenco (nicolas@lebedenco.net)")]
