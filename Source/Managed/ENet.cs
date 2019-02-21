@@ -1034,7 +1034,7 @@ namespace ENet
         #if __IOS__ || (UNITY_IOS && !UNITY_EDITOR)
             private const string nativeLibrary = "__Internal";
         #else
-            private const string nativeLibrary = "libenet";
+            private const string nativeLibrary = "libenet3";
 #endif
 
         internal static void ThrowIfError(int errcode)

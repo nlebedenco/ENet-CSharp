@@ -34,24 +34,19 @@
     #include "lz4/lz4.h"
 #endif
 
-#define ENET_VERSION_MAJOR 3
-#define ENET_VERSION_MINOR 0
-#define ENET_VERSION_PATCH 0
-#define ENET_VERSION_CREATE(major, minor, patch) (((major) << 16) | ((minor) << 8) | (patch))
-#define ENET_VERSION_GET_MAJOR(version) (((version) >> 16) & 0xFF)
-#define ENET_VERSION_GET_MINOR(version) (((version) >> 8) & 0xFF)
-#define ENET_VERSION_GET_PATCH(version) ((version) & 0xFF)
-#define ENET_VERSION ENET_VERSION_CREATE(ENET_VERSION_MAJOR, ENET_VERSION_MINOR, ENET_VERSION_PATCH)
+#include "version.h"
 
-#define ENET_TIME_OVERFLOW 86400000
-#define ENET_TIME_LESS(a, b) ((a) - (b) >= ENET_TIME_OVERFLOW)
-#define ENET_TIME_GREATER(a, b) ((b) - (a) >= ENET_TIME_OVERFLOW)
-#define ENET_TIME_LESS_EQUAL(a, b) (!ENET_TIME_GREATER(a, b))
-#define ENET_TIME_GREATER_EQUAL(a, b) (!ENET_TIME_LESS(a, b))
-#define ENET_TIME_DIFFERENCE(a, b) ((a) - (b) >= ENET_TIME_OVERFLOW ? (b) - (a) : (a) - (b))
+#define ENET_VERSION                        (((ENET_VERSION_MAJOR) << 16) | (ENET_VERSION_MINOR))
 
-#define ENET_SRTT_INITIAL 1.0
-#define ENET_SRTT_PARA_G  0.125
+#define ENET_TIME_OVERFLOW                  86400000
+#define ENET_TIME_LESS(a, b)                ((a) - (b) >= ENET_TIME_OVERFLOW)
+#define ENET_TIME_GREATER(a, b)             ((b) - (a) >= ENET_TIME_OVERFLOW)
+#define ENET_TIME_LESS_EQUAL(a, b)          (!ENET_TIME_GREATER(a, b))
+#define ENET_TIME_GREATER_EQUAL(a, b)       (!ENET_TIME_LESS(a, b))
+#define ENET_TIME_DIFFERENCE(a, b)          ((a) - (b) >= ENET_TIME_OVERFLOW ? (b) - (a) : (a) - (b))
+
+#define ENET_SRTT_INITIAL                   1.0
+#define ENET_SRTT_PARA_G                    0.125
 
 #ifdef _WIN32
     #if defined(_MSC_VER) && defined(ENET_IMPLEMENTATION)
