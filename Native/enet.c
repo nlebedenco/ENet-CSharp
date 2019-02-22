@@ -174,7 +174,7 @@ __inline int64_t enet_at_atomic_inc(char* ptr, int64_t delta, size_t size)
  * Globals
  **************************************************************************/
 
-ENetVersion enet_linked_version(void) 
+enet_uint64 enet_version(void)
 {
 	return ENET_VERSION;
 }

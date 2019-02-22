@@ -36,7 +36,7 @@
 
 #include "version.h"
 
-#define ENET_VERSION                        (((ENET_VERSION_MAJOR) << 16) | (ENET_VERSION_MINOR))
+#define ENET_VERSION                        ((((enet_uint64)ENET_VERSION_MAJOR) << 48) | ((enet_uint64)ENET_VERSION_MINOR << 32) | ((enet_uint64)ENET_VERSION_BUILD << 16) | ((enet_uint64)ENET_VERSION_REVISION))
 
 #define ENET_TIME_OVERFLOW                  86400000
 #define ENET_TIME_LESS(a, b)                ((a) - (b) >= ENET_TIME_OVERFLOW)
@@ -198,8 +198,6 @@ typedef uint8_t         enet_uint8;
 typedef uint16_t        enet_uint16;
 typedef uint32_t        enet_uint32;
 typedef uint64_t        enet_uint64;
-
-typedef enet_uint32     ENetVersion;
 
 typedef struct _ENetCallbacks 
 {
@@ -813,7 +811,7 @@ typedef struct _ENetHost
 ENET_API int                   enet_initialize(void);
 ENET_API int                   enet_initialize_with_callbacks(const ENetCallbacks* callbacks);
 ENET_API void                  enet_finalize(void);
-ENET_API ENetVersion           enet_linked_version(void);
+ENET_API enet_uint64           enet_version(void);
 ENET_API enet_uint64           enet_time(void);
 
          ENetSocket            enet_socket_create(ENetSocketType type);

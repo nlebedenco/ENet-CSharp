@@ -34,10 +34,25 @@ namespace ENet
     [Flags]
     public enum PacketFlags: ushort
     {
+        /// <summary>
+        /// Ordered but unreliable packets unless fragmented (fragments are reliable by default)
+        /// </summary>
         None = 0,
+        /// <summary>
+        /// Ordered and reliable packets
+        /// </summary>
         Reliable = 1 << 0,
+        /// <summary>
+        /// Unordered and unreliable packets unless fragmented (fragments are reliable by default)
+        /// </summary>
         Unsequenced = 1 << 1,
+        /// <summary>
+        /// Packet has custom allocator (internal use only)
+        /// </summary>
         NoAllocate = 1 << 2,
+        /// <summary>
+        /// Unreliable fragments
+        /// </summary>
         UnreliableFragments = 1 << 3
     }
 
@@ -997,10 +1012,17 @@ namespace ENet
         public const uint DefaultTimeoutMinimum = 5000;
         public const uint DefaultTimeoutMaximum = 30000;
 
+        public static Version Version => System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+
+        public static Version NativeLibraryVersion { get; private set; }
+        
         public static void Initialize()
         {
             if (Native.enet_initialize() != (int)ErrorCode.None)
                 throw new ENetException("Native library initialization failed.");
+
+            var nativeVersion = Native.enet_version();
+            NativeLibraryVersion = new Version((int)(nativeVersion >> 48), (int)(nativeVersion >> 32) & 0x0000FFFF, (int)(nativeVersion >> 16) & 0x0000FFFF, (int)nativeVersion & 0x0000FFFF);
         }
 
         public static void Initialize(Callbacks callbacks)
@@ -1073,6 +1095,9 @@ namespace ENet
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
         internal static extern void enet_finalize();
+
+        [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern long enet_version();
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
         internal static extern ulong enet_time();
