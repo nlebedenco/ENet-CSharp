@@ -346,10 +346,10 @@ namespace ENet
         /// <summary>
         /// Create a client host not bound to any specific local address. Local port is a random free port and maximum number of outgoing connections is 1.
         /// </summary>
-        public static Host Create(ushort channelLimit = 1, uint incomingBandwidth = 0, uint outgoingBandwidth = 0)
+        public static Host Create(ushort channelCount = Runtime.MinChannelCount, uint incomingBandwidth = 0, uint outgoingBandwidth = 0)
         {
-            ThrowIfChannelLimitOutOfRange(channelLimit);
-            var nativeHost = Native.enet_host_create(IntPtr.Zero, (IntPtr)1, channelLimit, incomingBandwidth, outgoingBandwidth);
+            ThrowIfChannelCountOutOfRange(channelCount);
+            var nativeHost = Native.enet_host_create(IntPtr.Zero, (IntPtr)1, channelCount, incomingBandwidth, outgoingBandwidth);
             if (nativeHost == IntPtr.Zero)
                 throw new OutOfMemoryException("Not enough memory to create Host.");
 
@@ -359,15 +359,15 @@ namespace ENet
         /// <summary>
         /// Create a server host bound to a specific local address and port.
         /// </summary>
-        public static Host Create(Address bindAddress, int peerLimit = 8, ushort channelLimit = 1, uint incomingBandwidth = 0, uint outgoingBandwidth = 0)
+        public static Host Create(Address bindAddress, int peerLimit = 8, ushort channelCount = Runtime.MinChannelCount, uint incomingBandwidth = 0, uint outgoingBandwidth = 0)
         {
             if (peerLimit < 1 || peerLimit > Runtime.MaxPeers)
                 throw new ArgumentOutOfRangeException(nameof(peerLimit));
 
-            ThrowIfChannelLimitOutOfRange(channelLimit);
+            ThrowIfChannelCountOutOfRange(channelCount);
 
             var nativeAddress = bindAddress.nativeAddress;
-            var nativeHost = Native.enet_host_create(ref nativeAddress, (IntPtr)peerLimit, channelLimit, incomingBandwidth, outgoingBandwidth);
+            var nativeHost = Native.enet_host_create(ref nativeAddress, (IntPtr)peerLimit, channelCount, incomingBandwidth, outgoingBandwidth);
 
             if (nativeHost == IntPtr.Zero)
                 throw new OutOfMemoryException("Not enough memory to create Host.");
@@ -378,9 +378,9 @@ namespace ENet
         /// <summary>
         /// Create a server host bound to a specific local address and port.
         /// </summary>
-        public static Host Create(string host, ushort port, int peerLimit = 8, ushort channelLimit = 1, uint incomingBandwidth = 0, uint outgoingBandwidth = 0)
+        public static Host Create(string host, ushort port, int peerLimit = 8, ushort channelCount = Runtime.MinChannelCount, uint incomingBandwidth = 0, uint outgoingBandwidth = 0)
         {
-            return Create(new Address(host, port), peerLimit, channelLimit, incomingBandwidth, outgoingBandwidth);
+            return Create(new Address(host, port), peerLimit, channelCount, incomingBandwidth, outgoingBandwidth);
         }
 
         private Host(IntPtr nativeHost)
@@ -480,10 +480,10 @@ namespace ENet
             }
         }
 
-        private static void ThrowIfChannelLimitOutOfRange(ushort channelLimit)
+        private static void ThrowIfChannelCountOutOfRange(ushort channelCount)
         {
-            if (channelLimit < 1 || channelLimit > Runtime.MaxChannelCount)
-                throw new ArgumentOutOfRangeException(nameof(channelLimit));
+            if (channelCount < Runtime.MinChannelCount || channelCount > Runtime.MaxChannelCount)
+                throw new ArgumentOutOfRangeException(nameof(channelCount));
         }
 
         private void ThrowIfNotValid()
@@ -537,7 +537,7 @@ namespace ENet
             }
         }
 
-        public ushort ChannelLimit
+        public ushort ChannelCount
         {
             get
             {
@@ -548,7 +548,7 @@ namespace ENet
             set
             {
                 ThrowIfNotValid();
-                ThrowIfChannelLimitOutOfRange(value);
+                ThrowIfChannelCountOutOfRange(value);
                 Native.enet_host_set_channel_limit(nativeHost, value);
             }
         }
@@ -560,16 +560,16 @@ namespace ENet
             Native.enet_host_bandwidth_limit(nativeHost, incomingBandwidth, outgoingBandwidth);
         }
 
-        public Peer Connect(Address address, ushort channelCount = 0, uint status = 0)
+        public Peer Connect(Address address, ushort channelCount = Runtime.MinChannelCount, uint status = 0)
         {
             ThrowIfNotValid();
-            ThrowIfChannelLimitOutOfRange(channelCount);
+            ThrowIfChannelCountOutOfRange(channelCount);
 
             var nativeAddress = address.nativeAddress;
             return new Peer(Native.enet_host_connect(nativeHost, ref nativeAddress, channelCount, status));
         }
 
-        public Peer Connect(string host, ushort port, ushort channelCount = 0, uint status = 0)
+        public Peer Connect(string host, ushort port, ushort channelCount = Runtime.MinChannelCount, uint status = 0)
         {
             return Connect(new Address(host, port), channelCount, status);
         }
@@ -1001,6 +1001,7 @@ namespace ENet
 
     public static class Runtime
     {
+        public const ushort MinChannelCount = 1;
         public const ushort MaxChannelCount = 256;
         public const ushort MaxPeers = 4096;
         public const uint MaxPacketSize = 32 * 1024 * 1024;
@@ -1133,10 +1134,10 @@ namespace ENet
         internal static extern void enet_packet_dispose(IntPtr packet);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern IntPtr enet_host_create(ref ENetAddress address, IntPtr peerLimit, ushort channelLimit, uint incomingBandwidth, uint outgoingBandwidth);
+        internal static extern IntPtr enet_host_create(ref ENetAddress address, IntPtr peerLimit, ushort channelCount, uint incomingBandwidth, uint outgoingBandwidth);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern IntPtr enet_host_create(IntPtr address, IntPtr peerLimit, ushort channelLimit, uint incomingBandwidth, uint outgoingBandwidth);
+        internal static extern IntPtr enet_host_create(IntPtr address, IntPtr peerLimit, ushort channelCount, uint incomingBandwidth, uint outgoingBandwidth);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
         internal static extern IntPtr enet_host_connect(IntPtr host, ref ENetAddress address, ushort channelCount, uint data);
@@ -1151,7 +1152,7 @@ namespace ENet
         internal static extern int enet_host_check_events(IntPtr host, out ENetEvent ev);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern void enet_host_set_channel_limit(IntPtr host, ushort channelLimit);
+        internal static extern void enet_host_set_channel_limit(IntPtr host, ushort value);
 
         [DllImport(nativeLibrary, CallingConvention = CallingConvention.Cdecl)]
         internal static extern ushort enet_host_get_channel_limit(IntPtr host);

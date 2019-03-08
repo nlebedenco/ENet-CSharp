@@ -3120,7 +3120,7 @@ ENetHost* enet_host_create(const ENetAddress* bindAddress, size_t peerCount, ene
 	if (bindAddress != NULL && (enet_socket_get_address(host->socket, &host->address) < 0))
 		host->address = *bindAddress;
 
-	if (channelLimit == 0 || channelLimit > ENET_PROTOCOL_MAXIMUM_CHANNEL_COUNT)
+	if (channelLimit > ENET_PROTOCOL_MAXIMUM_CHANNEL_COUNT)
 	{
 		channelLimit = ENET_PROTOCOL_MAXIMUM_CHANNEL_COUNT;
 	}
