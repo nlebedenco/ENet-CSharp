@@ -537,7 +537,7 @@ namespace ENet
             }
         }
 
-        public ushort ChannelCount
+        public ushort MaxChannelCount
         {
             get
             {
