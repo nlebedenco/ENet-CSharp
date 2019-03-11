@@ -625,14 +625,11 @@ namespace ENet
             packet.nativePacket = IntPtr.Zero;
         }
 
-        public void Update(out Event netEvent, int timeout = 0)
+        public void Update(out Event netEvent, uint timeout = 0)
         {
-            if (timeout < 0)
-                throw new ArgumentOutOfRangeException(nameof(timeout));
-
             ThrowIfNotValid();
 
-            int errcode = Native.enet_host_service(nativeHost, out ENetEvent nativeEvent, (uint)timeout);
+            int errcode = Native.enet_host_service(nativeHost, out ENetEvent nativeEvent, timeout);
             Native.ThrowIfError(errcode);
             netEvent = new Event(nativeEvent);
         }

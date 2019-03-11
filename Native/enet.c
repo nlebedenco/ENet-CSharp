@@ -3141,7 +3141,7 @@ ENetHost* enet_host_create(const ENetAddress* bindAddress, size_t peerCount, ene
     host->startTime = enet_time();
 	host->commandCount = 0;
 	host->bufferCount = 0;
-	host->compressionEnabled = 0;
+	host->compressionEnabled = 1;
     host->compressionBufferSize = 0;
     host->compressionBuffer = NULL;
     host->crcEnabled = 1;
