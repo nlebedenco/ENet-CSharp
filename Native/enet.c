@@ -4167,6 +4167,7 @@ int enet_socket_receive(ENetSocket socket, ENetAddress* address, ENetBuffer* buf
 	msgHdr.msg_iov = (struct iovec*)buffers;
 	msgHdr.msg_iovlen = bufferCount;
 
+Receive:
 	recvLength = recvmsg(socket, &msgHdr, MSG_NOSIGNAL);
 
 	if (recvLength == -1) 
@@ -4176,6 +4177,9 @@ int enet_socket_receive(ENetSocket socket, ENetAddress* address, ENetBuffer* buf
 
 		return -1;
 	}
+
+    if (flags & (MSG_BCAST | MSG_MCAST))
+        goto Receive;
 
 	if (msgHdr.msg_flags & MSG_TRUNC) 
 		return -1;
@@ -4759,8 +4763,9 @@ int inet_pton(int af, const char* src, struct in6_addr* dst)
 		INT sinLength = sizeof(struct sockaddr_in6);
 		DWORD flags = 0, recvLength;
 		struct sockaddr_in6 sin; memset(&sin, 0, sizeof(sin));
-
-		if (WSARecvFrom(socket, (LPWSABUF)buffers, (DWORD)bufferCount, &recvLength, &flags, address != NULL ? (struct sockaddr*)&sin : NULL, address != NULL ? &sinLength : NULL, NULL, NULL) == SOCKET_ERROR) 
+    
+    Receive:
+        if (WSARecvFrom(socket, (LPWSABUF)buffers, (DWORD)bufferCount, &recvLength, &flags, address != NULL ? (struct sockaddr*)&sin : NULL, address != NULL ? &sinLength : NULL, NULL, NULL) == SOCKET_ERROR)
 		{
 			const int err = WSAGetLastError();
 			switch (err) 
@@ -4772,6 +4777,9 @@ int inet_pton(int af, const char* src, struct in6_addr* dst)
 				return -1;
 			}
 		}
+
+        if (flags & (MSG_BCAST | MSG_MCAST))
+            goto Receive;
 
 		if (flags & MSG_PARTIAL)
 			return -1;
